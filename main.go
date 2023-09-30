@@ -11,21 +11,20 @@ import (
 
 func main() {
 	fset := token.NewFileSet()
-	filename := "samples/comp.go"
-	data, _ := os.ReadFile(filename)
+	filename := "samples/block.go"
+	source, _ := os.ReadFile(filename)
 	f, _ := parser.ParseFile(fset, filename, nil, 0)
-	var funcDeclarations []*ast.FuncDecl
+	var fd *ast.FuncDecl
 	ast.Inspect(f, func(n ast.Node) bool {
+		if fd != nil {
+			return false;
+		}
 		if fun, ok := n.(*ast.FuncDecl); ok {
-			funcDeclarations = append(funcDeclarations, fun)
+			fd = fun
 			return false
 		} 
 		return true
 	})
-	for _, fd := range funcDeclarations {
-		fmt.Println("---")
-		graph := graph.FuncGraph(data, fd)
-		fmt.Println(graph.String())
-		fmt.Println("---")
-	}
+	graph := graph.BuildFuncGraph(source, fd)
+	fmt.Println(graph.String())
 }
