@@ -22,12 +22,15 @@ func blockStmtNode(data []byte, stmt *ast.BlockStmt) *Node {
 		switch x := stmt.(type) {
 		case *ast.IfStmt:
 			end = x.Body.Lbrace
-			node.Next = append(node.Next, ifStmtNode(data, x))
+			b, e := ifStmtNode(data, x) 
+			node.Next = append(node.Next, b)
+			if e != nil {
+				node.Next = append(node.Next, e)
+			}
 			break loop
 		}
 	}
 	var text = string(data[start+1:end-1])
-	text = levelOutIndent(text)
 	node.Text = text
 	return &node
 }
@@ -43,9 +46,9 @@ func levelOutIndent(text string) string {
 	return strings.Join(lines, "\n")
 }
 
-func ifStmtNode(data []byte, stmt *ast.IfStmt) *Node {
-	var node Node
-	return &node
+func ifStmtNode(data []byte, stmt *ast.IfStmt) (bodyNode *Node, elseNode *Node) {
+	bodyNode = blockStmtNode(data, stmt.Body)
+	return
 }
 
 type Graph struct {
