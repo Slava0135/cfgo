@@ -31,17 +31,21 @@ func main() {
 		var statement = string(data[start:end])
 		statement = strings.TrimPrefix(statement, "\n")
 		statement = strings.TrimSuffix(statement, "}\n")
-		var lines = strings.Split(statement, "\n")
-		const indent = "\t"
-		for strings.HasPrefix(lines[0], indent) {
-			for i, l := range lines {
-				lines[i] = strings.TrimPrefix(l, indent)
-			}
-		}
-		statement = strings.Join(lines, "\n")
+		statement = levelOutIndent(statement)
 		fmt.Printf("%s", statement)
 		fmt.Println("---")
 	}
+}
+
+func levelOutIndent(text string) string {
+	var lines = strings.Split(text, "\n")
+	const indent = "\t"
+	for strings.HasPrefix(lines[0], indent) {
+		for i, l := range lines {
+			lines[i] = strings.TrimPrefix(l, indent)
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 type Graph struct {
