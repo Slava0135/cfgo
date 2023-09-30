@@ -1,7 +1,7 @@
 package samples
 
 func comp(a, b int) int {
-	var diff = a - b;
+	var diff = a - b
 	if diff > 0 {
 		return 1
 	}
@@ -12,7 +12,7 @@ func comp(a, b int) int {
 }
 
 func comp2(a, b int) int {
-	var diff = a - b;
+	var diff = a - b
 	if diff > 0 {
 		return 1
 	}
