@@ -61,10 +61,8 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) *Node {
 	for _, stmt := range blockStmt.List {
 		switch s := stmt.(type) {
 		case *ast.IfStmt:
-			nextNode := g.ifStmt(s, g.newNode())
 			exitNode.Text = string(g.Source[start:s.Cond.End()])
-			exitNode.Next = nextNode
-			exitNode = nextNode.Next
+			exitNode = g.ifStmt(s, exitNode)
 			start = s.End()
 		}
 	}
@@ -72,10 +70,12 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) *Node {
 	return entryNode
 }
 
-func (g *Graph) ifStmt(ifStmt *ast.IfStmt, exit *Node) *Node {
+func (g *Graph) ifStmt(ifStmt *ast.IfStmt, entryNode *Node) *Node {
 	bodyNode := g.newNode()
+	entryNode.Next = bodyNode
 	bodyNode.Text = string(g.Source[ifStmt.Body.Lbrace+2:ifStmt.Body.Rbrace-3])
-	bodyNode.Next = exit
-	return bodyNode
+	exitNode := g.newNode()
+	bodyNode.Next = exitNode
+	return exitNode
 }
 
