@@ -24,21 +24,21 @@ func main() {
 	})
 	for _, fd := range funcDeclarations {
 		fmt.Println("---")
-		graph := buildFuncGraph(data, fd)
+		graph := funcGraph(data, fd)
 		fmt.Printf("%v", graph.Root.Text)
 		fmt.Println()
 		fmt.Println("---")
 	}
 }
 
-func buildFuncGraph(data []byte, fd *ast.FuncDecl) *Graph {
+func funcGraph(data []byte, fd *ast.FuncDecl) *Graph {
 	var graph Graph
 	graph.Name = fd.Name.Name
-	graph.Root = buildBlockStmtNode(data, fd.Body)
+	graph.Root = blockStmtNode(data, fd.Body)
 	return &graph
 }
 
-func buildBlockStmtNode(data []byte, stmt *ast.BlockStmt) *Node {
+func blockStmtNode(data []byte, stmt *ast.BlockStmt) *Node {
 	var node Node
 	node.Next = make([]*Node, 0)
 	var start = stmt.Pos()
@@ -48,7 +48,7 @@ func buildBlockStmtNode(data []byte, stmt *ast.BlockStmt) *Node {
 		switch x := stmt.(type) {
 		case *ast.IfStmt:
 			end = x.Body.Lbrace
-			node.Next = append(node.Next, buildIfStmtNode(data, x))
+			node.Next = append(node.Next, ifStmtNode(data, x))
 			break loop
 		}
 	}
@@ -69,7 +69,7 @@ func levelOutIndent(text string) string {
 	return strings.Join(lines, "\n")
 }
 
-func buildIfStmtNode(data []byte, stmt *ast.IfStmt) *Node {
+func ifStmtNode(data []byte, stmt *ast.IfStmt) *Node {
 	var node Node
 	return &node
 }
