@@ -24,17 +24,29 @@ func main() {
 	})
 	for _, fd := range funcDeclarations {
 		fmt.Println("---")
-		var graph Graph
-		graph.Name = fd.Name.Name
-		var start = fd.Body.Pos()
-		var end = fd.Body.End()
-		var statement = string(data[start:end])
-		statement = strings.TrimPrefix(statement, "\n")
-		statement = strings.TrimSuffix(statement, "}\n")
-		statement = levelOutIndent(statement)
-		fmt.Printf("%s", statement)
+		graph := buildFuncGraph(data, fd)
+		fmt.Printf("%v", graph.Root.Text)
 		fmt.Println("---")
 	}
+}
+
+func buildFuncGraph(data []byte, fd *ast.FuncDecl) *Graph {
+	var graph Graph
+	graph.Name = fd.Name.Name
+	graph.Root = buildBlockStmtNode(data, fd.Body)
+	return &graph
+}
+
+func buildBlockStmtNode(data []byte, stmt *ast.BlockStmt) *Node {
+	var node Node
+	var start = stmt.Pos()
+	var end = stmt.End()
+	var text = string(data[start:end])
+	text = strings.TrimPrefix(text, "\n")
+	text = strings.TrimSuffix(text, "}\n")
+	text = levelOutIndent(text)
+	node.Text = text
+	return &node
 }
 
 func levelOutIndent(text string) string {
