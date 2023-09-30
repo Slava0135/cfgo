@@ -31,6 +31,7 @@ func blockStmtNode(data []byte, stmt *ast.BlockStmt) *Node {
 			start = x.End()
 		}
 	}
+	lastNode.Text = string(data[start:stmt.End()])
 	return &firstNode
 }
 
