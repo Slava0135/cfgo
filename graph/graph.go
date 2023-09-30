@@ -23,15 +23,12 @@ func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	var graph Graph
 	graph.Name = "function: '" + string(fd.Name.Name) + "'"
 	graph.Source = source
-	graph.Root = graph.blockStmt(fd.Body)
+	blockEntryNode, blockExitNode := graph.blockStmt(fd.Body)
+	graph.Root = blockEntryNode
 	exitNode := graph.newNode()
 	exitNode.Text = "RETURN"
 	graph.Exit = exitNode
-	var next = graph.Root
-	for next.Next != nil {
-		next = next.Next
-	}
-	next.Next = exitNode
+	blockExitNode.Next = exitNode
 	return &graph
 }
 
@@ -54,28 +51,27 @@ func (g *Graph) newNode() *Node {
 	return &node
 }
 
-func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) *Node {
-	entryNode := g.newNode()
-	var exitNode = entryNode
+func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) (entryNode, exitNode *Node) {
+	entryNode = g.newNode()
+	exitNode = entryNode
 	var start = blockStmt.Lbrace+1
 	for _, stmt := range blockStmt.List {
 		switch s := stmt.(type) {
 		case *ast.IfStmt:
+			ifEntryNode, ifExitNode := g.ifStmt(s)
+			exitNode.Next = ifEntryNode
 			exitNode.Text = string(g.Source[start:s.Cond.End()])
-			exitNode = g.ifStmt(s, exitNode)
+			exitNode = g.newNode()
+			ifExitNode.Next = exitNode
 			start = s.End()
 		}
 	}
-	exitNode.Text = string(g.Source[start:blockStmt.Rbrace-2])
-	return entryNode
+	exitNode.Text = string(g.Source[start:blockStmt.Rbrace])
+	return
 }
 
-func (g *Graph) ifStmt(ifStmt *ast.IfStmt, entryNode *Node) *Node {
-	bodyNode := g.newNode()
-	entryNode.Next = bodyNode
-	bodyNode.Text = string(g.Source[ifStmt.Body.Lbrace+1:ifStmt.Body.Rbrace-3])
-	exitNode := g.newNode()
-	bodyNode.Next = exitNode
-	return exitNode
+func (g *Graph) ifStmt(ifStmt *ast.IfStmt) (entryNode, exitNode *Node) {
+	entryNode, exitNode = g.blockStmt(ifStmt.Body)
+	return
 }
 
