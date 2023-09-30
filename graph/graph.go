@@ -27,14 +27,22 @@ func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	exitNode := graph.newNode()
 	exitNode.Text = "RETURN"
 	graph.Exit = exitNode
-	graph.Root.Next = exitNode
+	var next = graph.Root
+	for next.Next != nil {
+		next = next.Next
+	}
+	next.Next = exitNode
 	return &graph
 }
 
 func (g Graph) String() string {
 	var res []byte
 	res = fmt.Appendf(res, "%s", g.Name)
-	res = fmt.Appendf(res, "\n[ %d -> %d ]\n%s", g.Root.Index, g.Root.Next.Index, g.Root.Text)
+	var next = g.Root
+	for next != nil && next != g.Exit {
+		res = fmt.Appendf(res, "\n[ %d -> %d ]\n%s", next.Index, next.Next.Index, next.Text)
+		next = next.Next
+	}
 	res = fmt.Appendf(res, "\n[ %d ]\n%s", g.Exit.Index, g.Exit.Text)
 	return string(res)
 }
@@ -53,10 +61,10 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) *Node {
 	for _, stmt := range blockStmt.List {
 		switch s := stmt.(type) {
 		case *ast.IfStmt:
-			nextNode := g.ifStmt(s)
+			nextNode := g.ifStmt(s, g.newNode())
 			exitNode.Text = string(g.Source[start:s.Cond.End()])
 			exitNode.Next = nextNode
-			exitNode = g.newNode()
+			exitNode = nextNode.Next
 			start = s.End()
 		}
 	}
@@ -64,7 +72,10 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) *Node {
 	return entryNode
 }
 
-func (g *Graph) ifStmt(ifStmt *ast.IfStmt) *Node {
-	return nil
+func (g *Graph) ifStmt(ifStmt *ast.IfStmt, exit *Node) *Node {
+	bodyNode := g.newNode()
+	bodyNode.Text = string(g.Source[ifStmt.Body.Lbrace:ifStmt.Body.Rbrace])
+	bodyNode.Next = exit
+	return bodyNode
 }
 
