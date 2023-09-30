@@ -18,17 +18,12 @@ func main() {
 		log.Fatalln(err)
 	}
 	f, _ := parser.ParseFile(fset, filename, nil, 0)
-	var fd *ast.FuncDecl
 	ast.Inspect(f, func(n ast.Node) bool {
-		if fd != nil {
-			return false;
-		}
-		if fun, ok := n.(*ast.FuncDecl); ok {
-			fd = fun
+		if fd, ok := n.(*ast.FuncDecl); ok {
+			graph := graph.BuildFuncGraph(source, fd)
+			fmt.Println(graph.String())
 			return false
 		} 
 		return true
 	})
-	graph := graph.BuildFuncGraph(source, fd)
-	fmt.Println(graph.String())
 }

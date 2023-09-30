@@ -43,7 +43,7 @@ func (g Graph) String() string {
 		}
 		res = fmt.Appendf(res, "\n[ %d -> %d ]\n%s", n.Index, n.Next.Index, n.Text)
 	}
-	res = fmt.Appendf(res, "\n[ %d ]\n%s", g.Exit.Index, g.Exit.Text)
+	res = fmt.Appendf(res, "\n[ %d ]\n%s\n", g.Exit.Index, g.Exit.Text)
 	return string(res)
 }
 

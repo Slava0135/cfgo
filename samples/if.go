@@ -10,3 +10,16 @@ func ifStatement() {
 	}
 	println(this)
 }
+
+func elseStatement() {
+	var what = 42
+	var this = 0
+	if what > 0 {
+		if what < 0 {
+			this = what
+		} else {
+			this = 24
+		}
+	}
+	println(this)
+}
