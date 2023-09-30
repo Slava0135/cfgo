@@ -25,8 +25,7 @@ func main() {
 	for _, fd := range funcDeclarations {
 		fmt.Println("---")
 		graph := graph.FuncGraph(data, fd)
-		fmt.Printf("%v", graph.Root.Text)
-		fmt.Println()
+		fmt.Println(graph.String())
 		fmt.Println("---")
 	}
 }
