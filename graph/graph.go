@@ -13,17 +13,29 @@ type Graph struct {
 }
 
 type Node struct {
-	Text string
-	Next []*Node
+	Index uint
+	Text  string
 }
 
 func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	var graph Graph
 	graph.Name = "function: '" + string(fd.Name.Name) + "'"
 	graph.Source = source
+	graph.Root = graph.blockStmt(fd.Body)
 	return &graph
 }
 
+func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) *Node {
+	var blockNode Node
+	blockNode.Index = g.NodeCount
+	g.NodeCount += 1
+	blockNode.Text = string(g.Source[blockStmt.Lbrace+1:blockStmt.Rbrace-2])
+	return &blockNode
+}
+
 func (g Graph) String() string {
-	return fmt.Sprintln(g.Name)
+	var res []byte
+	res = fmt.Appendf(res, "%s\n", g.Name)
+	res = fmt.Appendf(res, "#%d\n%s", g.Root.Index, g.Root.Text)
+	return string(res)
 }
