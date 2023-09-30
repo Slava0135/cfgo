@@ -11,6 +11,7 @@ type Graph struct {
 	Root      *Node
 	Exit      *Node
 	NodeCount uint
+	AllNodes  []*Node
 }
 
 type Node struct {
@@ -35,10 +36,11 @@ func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 func (g Graph) String() string {
 	var res []byte
 	res = fmt.Appendf(res, "%s", g.Name)
-	var next = g.Root
-	for next != nil && next != g.Exit {
-		res = fmt.Appendf(res, "\n[ %d -> %d ]\n%s", next.Index, next.Next.Index, next.Text)
-		next = next.Next
+	for _, n := range g.AllNodes {
+		if n == g.Exit {
+			break
+		}
+		res = fmt.Appendf(res, "\n[ %d -> %d ]\n%s", n.Index, n.Next.Index, n.Text)
 	}
 	res = fmt.Appendf(res, "\n[ %d ]\n%s", g.Exit.Index, g.Exit.Text)
 	return string(res)
@@ -48,6 +50,7 @@ func (g *Graph) newNode() *Node {
 	var node Node
 	node.Index = g.NodeCount
 	g.NodeCount += 1
+	g.AllNodes = append(g.AllNodes, &node)
 	return &node
 }
 
