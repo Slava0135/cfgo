@@ -3,6 +3,7 @@ package graph
 import (
 	"fmt"
 	"go/ast"
+	"strings"
 )
 
 type Graph struct {
@@ -61,15 +62,21 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) (entryNode, exitNode *Node) 
 	for _, stmt := range blockStmt.List {
 		switch s := stmt.(type) {
 		case *ast.IfStmt:
+			exitNode.Text = string(g.Source[start:s.Cond.End()])
 			ifEntryNode, ifExitNode := g.ifStmt(s)
 			exitNode.Next = ifEntryNode
-			exitNode.Text = string(g.Source[start:s.Cond.End()])
-			exitNode = g.newNode()
-			ifExitNode.Next = exitNode
+			if (ifEntryNode != ifExitNode) {
+				exitNode = ifExitNode
+			} else {
+				exitNode = g.newNode()
+				ifExitNode.Next = exitNode
+			}
 			start = s.End()
 		}
 	}
-	exitNode.Text = string(g.Source[start:blockStmt.Rbrace])
+	text := string(g.Source[start:blockStmt.Rbrace])
+	lines := strings.Split(text, "\n")
+	exitNode.Text = strings.Join(lines[:len(lines)-1], "\n")
 	return
 }
 
