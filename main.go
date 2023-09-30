@@ -26,6 +26,7 @@ func main() {
 		fmt.Println("---")
 		graph := buildFuncGraph(data, fd)
 		fmt.Printf("%v", graph.Root.Text)
+		fmt.Println()
 		fmt.Println("---")
 	}
 }
@@ -39,11 +40,19 @@ func buildFuncGraph(data []byte, fd *ast.FuncDecl) *Graph {
 
 func buildBlockStmtNode(data []byte, stmt *ast.BlockStmt) *Node {
 	var node Node
+	node.Next = make([]*Node, 0)
 	var start = stmt.Pos()
 	var end = stmt.End()
-	var text = string(data[start:end])
-	text = strings.TrimPrefix(text, "\n")
-	text = strings.TrimSuffix(text, "}\n")
+	loop:
+	for _, stmt := range stmt.List {
+		switch x := stmt.(type) {
+		case *ast.IfStmt:
+			end = x.Body.Lbrace
+			node.Next = append(node.Next, buildIfStmtNode(data, x))
+			break loop
+		}
+	}
+	var text = string(data[start+1:end-1])
 	text = levelOutIndent(text)
 	node.Text = text
 	return &node
@@ -58,6 +67,11 @@ func levelOutIndent(text string) string {
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+func buildIfStmtNode(data []byte, stmt *ast.IfStmt) *Node {
+	var node Node
+	return &node
 }
 
 type Graph struct {
