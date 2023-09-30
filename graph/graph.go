@@ -24,21 +24,11 @@ func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	graph.Name = "function: '" + string(fd.Name.Name) + "'"
 	graph.Source = source
 	graph.Root = graph.blockStmt(fd.Body)
-	var exitNode Node
-	exitNode.Index = graph.NodeCount
-	graph.NodeCount += 1
+	exitNode := graph.newNode()
 	exitNode.Text = "RETURN"
-	graph.Exit = &exitNode
-	graph.Root.Next = &exitNode
+	graph.Exit = exitNode
+	graph.Root.Next = exitNode
 	return &graph
-}
-
-func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) *Node {
-	var blockNode Node
-	blockNode.Index = g.NodeCount
-	g.NodeCount += 1
-	blockNode.Text = string(g.Source[blockStmt.Lbrace+1:blockStmt.Rbrace-2])
-	return &blockNode
 }
 
 func (g Graph) String() string {
@@ -48,3 +38,33 @@ func (g Graph) String() string {
 	res = fmt.Appendf(res, "\n[ %d ]\n%s", g.Exit.Index, g.Exit.Text)
 	return string(res)
 }
+
+func (g *Graph) newNode() *Node {
+	var node Node
+	node.Index = g.NodeCount
+	g.NodeCount += 1
+	return &node
+}
+
+func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) *Node {
+	entryNode := g.newNode()
+	var exitNode = entryNode
+	var start = blockStmt.Lbrace+1
+	for _, stmt := range blockStmt.List {
+		switch s := stmt.(type) {
+		case *ast.IfStmt:
+			nextNode := g.ifStmt(s)
+			exitNode.Text = string(g.Source[start:s.Cond.End()])
+			exitNode.Next = nextNode
+			exitNode = g.newNode()
+			start = s.End()
+		}
+	}
+	exitNode.Text = string(g.Source[start:blockStmt.End()])
+	return entryNode
+}
+
+func (g *Graph) ifStmt(ifStmt *ast.IfStmt) *Node {
+	return nil
+}
+
