@@ -10,24 +10,15 @@ import (
 func main() {
 	fset := token.NewFileSet()
 	f, _ := parser.ParseFile(fset, "samples/comp.go", nil, 0)
-	lastLine := 0
+	var funcDeclarations []*ast.FuncDecl
 	ast.Inspect(f, func(n ast.Node) bool {
-		var s string
-		fmt.Printf("%T\n", n)
-		switch x := n.(type) {
-		case *ast.BasicLit:
-			s = x.Value
-		case *ast.Ident:
-			s = x.Name
-		}
-		if s != "" {
-			var pos = fset.Position(n.Pos())
-			fmt.Printf("%s\t", s)
-			if pos.Line != lastLine {
-				fmt.Println()
-				lastLine = pos.Line
-			}
-		}
+		if fun, ok := n.(*ast.FuncDecl); ok {
+			funcDeclarations = append(funcDeclarations, fun)
+			return false
+		} 
 		return true
 	})
+	for _, fd := range funcDeclarations {
+		fmt.Printf("%s\n", fd.Name.Name)
+	}
 }
