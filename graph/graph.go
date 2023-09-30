@@ -73,7 +73,7 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) *Node {
 func (g *Graph) ifStmt(ifStmt *ast.IfStmt, entryNode *Node) *Node {
 	bodyNode := g.newNode()
 	entryNode.Next = bodyNode
-	bodyNode.Text = string(g.Source[ifStmt.Body.Lbrace+2:ifStmt.Body.Rbrace-3])
+	bodyNode.Text = string(g.Source[ifStmt.Body.Lbrace+1:ifStmt.Body.Rbrace-3])
 	exitNode := g.newNode()
 	bodyNode.Next = exitNode
 	return exitNode
