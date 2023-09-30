@@ -18,6 +18,7 @@ func comp2(a, b int) int {
 	}
 	if diff < 0 {
 		return -1
+	} else {
+		return 0
 	}
-	return 0
 }

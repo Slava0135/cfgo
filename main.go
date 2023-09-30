@@ -5,11 +5,15 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
+	"strings"
 )
 
 func main() {
 	fset := token.NewFileSet()
-	f, _ := parser.ParseFile(fset, "samples/comp.go", nil, 0)
+	filename := "samples/comp.go"
+	data, _ := os.ReadFile(filename)
+	f, _ := parser.ParseFile(fset, filename, nil, 0)
 	var funcDeclarations []*ast.FuncDecl
 	ast.Inspect(f, func(n ast.Node) bool {
 		if fun, ok := n.(*ast.FuncDecl); ok {
@@ -19,6 +23,25 @@ func main() {
 		return true
 	})
 	for _, fd := range funcDeclarations {
-		fmt.Printf("%s\n", fd.Name.Name)
+		fmt.Println("---")
+		var graph Graph
+		graph.Name = fd.Name.Name
+		var start = fd.Body.Pos()
+		var end = fd.Body.End()
+		var statement = string(data[start:end])
+		statement = strings.TrimPrefix(statement, "\n")
+		statement = strings.TrimSuffix(statement, "}\n")
+		fmt.Printf("%s", statement)
+		fmt.Println("---")
 	}
+}
+
+type Graph struct {
+	Name string
+	Root *Node
+}
+
+type Node struct {
+	Text string
+	Next []*Node
 }
