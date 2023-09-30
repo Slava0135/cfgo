@@ -16,6 +16,7 @@ type Graph struct {
 type Node struct {
 	Index uint
 	Text  string
+	Next  *Node
 }
 
 func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
@@ -28,6 +29,7 @@ func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	graph.NodeCount += 1
 	exitNode.Text = "RETURN"
 	graph.Exit = &exitNode
+	graph.Root.Next = &exitNode
 	return &graph
 }
 
@@ -42,7 +44,7 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) *Node {
 func (g Graph) String() string {
 	var res []byte
 	res = fmt.Appendf(res, "%s", g.Name)
-	res = fmt.Appendf(res, "\n#%d\n%s", g.Root.Index, g.Root.Text)
-	res = fmt.Appendf(res, "\n#%d\n%s", g.Exit.Index, g.Exit.Text)
+	res = fmt.Appendf(res, "\n[ %d -> %d ]\n%s", g.Root.Index, g.Root.Next.Index, g.Root.Text)
+	res = fmt.Appendf(res, "\n[ %d ]\n%s", g.Exit.Index, g.Exit.Text)
 	return string(res)
 }
