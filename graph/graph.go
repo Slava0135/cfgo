@@ -9,6 +9,7 @@ type Graph struct {
 	Name      string
 	Source    []byte
 	Root      *Node
+	Exit      *Node
 	NodeCount uint
 }
 
@@ -22,6 +23,11 @@ func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	graph.Name = "function: '" + string(fd.Name.Name) + "'"
 	graph.Source = source
 	graph.Root = graph.blockStmt(fd.Body)
+	var exitNode Node
+	exitNode.Index = graph.NodeCount
+	graph.NodeCount += 1
+	exitNode.Text = "RETURN"
+	graph.Exit = &exitNode
 	return &graph
 }
 
@@ -35,7 +41,8 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) *Node {
 
 func (g Graph) String() string {
 	var res []byte
-	res = fmt.Appendf(res, "%s\n", g.Name)
-	res = fmt.Appendf(res, "#%d\n%s", g.Root.Index, g.Root.Text)
+	res = fmt.Appendf(res, "%s", g.Name)
+	res = fmt.Appendf(res, "\n#%d\n%s", g.Root.Index, g.Root.Text)
+	res = fmt.Appendf(res, "\n#%d\n%s", g.Exit.Index, g.Exit.Text)
 	return string(res)
 }
