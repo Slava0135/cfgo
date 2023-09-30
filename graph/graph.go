@@ -68,13 +68,13 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) *Node {
 			start = s.End()
 		}
 	}
-	exitNode.Text = string(g.Source[start:blockStmt.End()])
+	exitNode.Text = string(g.Source[start:blockStmt.Rbrace-2])
 	return entryNode
 }
 
 func (g *Graph) ifStmt(ifStmt *ast.IfStmt, exit *Node) *Node {
 	bodyNode := g.newNode()
-	bodyNode.Text = string(g.Source[ifStmt.Body.Lbrace:ifStmt.Body.Rbrace])
+	bodyNode.Text = string(g.Source[ifStmt.Body.Lbrace+2:ifStmt.Body.Rbrace-3])
 	bodyNode.Next = exit
 	return bodyNode
 }
