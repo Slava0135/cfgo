@@ -13,26 +13,24 @@ func FuncGraph(data []byte, fd *ast.FuncDecl) *Graph {
 }
 
 func blockStmtNode(data []byte, stmt *ast.BlockStmt) *Node {
-	var node Node
-	node.Next = make([]*Node, 0)
-	var start = stmt.Pos()
-	var end = stmt.End()
-	loop:
+	var firstNode Node
+	var lastNode = &firstNode
+	var start = stmt.Pos()+1
 	for _, stmt := range stmt.List {
 		switch x := stmt.(type) {
 		case *ast.IfStmt:
-			end = x.Body.Lbrace
-			b, e := ifStmtNode(data, x) 
-			node.Next = append(node.Next, b)
+			lastNode.Text = string(data[start:x.Body.Lbrace-1])
+			var nextNode Node
+			b, e := ifStmtNode(data, x, &nextNode) 
+			lastNode.Next = append(lastNode.Next, b)
 			if e != nil {
-				node.Next = append(node.Next, e)
+				lastNode.Next = append(lastNode.Next, e)
 			}
-			break loop
+			lastNode = &nextNode
+			start = x.End()
 		}
 	}
-	var text = string(data[start+1:end-1])
-	node.Text = text
-	return &node
+	return &firstNode
 }
 
 func levelOutIndent(text string) string {
@@ -46,8 +44,9 @@ func levelOutIndent(text string) string {
 	return strings.Join(lines, "\n")
 }
 
-func ifStmtNode(data []byte, stmt *ast.IfStmt) (bodyNode *Node, elseNode *Node) {
+func ifStmtNode(data []byte, stmt *ast.IfStmt, next *Node) (bodyNode *Node, elseNode *Node) {
 	bodyNode = blockStmtNode(data, stmt.Body)
+	bodyNode.Next = append(bodyNode.Next, next)
 	return
 }
 
