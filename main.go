@@ -10,8 +10,10 @@ import (
 func main() {
 	fset := token.NewFileSet()
 	f, _ := parser.ParseFile(fset, "samples/comp.go", nil, 0)
+	lastLine := 0
 	ast.Inspect(f, func(n ast.Node) bool {
 		var s string
+		fmt.Printf("%T\n", n)
 		switch x := n.(type) {
 		case *ast.BasicLit:
 			s = x.Value
@@ -19,7 +21,12 @@ func main() {
 			s = x.Name
 		}
 		if s != "" {
-			fmt.Printf("%s:\t%s\n", fset.Position(n.Pos()), s)
+			var pos = fset.Position(n.Pos())
+			fmt.Printf("%s\t", s)
+			if pos.Line != lastLine {
+				fmt.Println()
+				lastLine = pos.Line
+			}
 		}
 		return true
 	})
