@@ -90,6 +90,24 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 			last = ifExit
 			g.createIndex(last)
 			continue
+		case *ast.ForStmt:
+			var forExit *Node
+			if i < len(blockStmt.List) - 1 {
+				forExit = g.newNode()
+			} else {
+				forExit = exit
+			}
+			var forEntry = g.forStmt(s, forExit)
+			if first == nil {
+				first = forEntry
+			} else {
+				last.Next = append(last.Next, forEntry)
+				last.Text = text
+				text = ""
+			}
+			last = forExit
+			g.createIndex(last)
+			continue
 		}
 		if first == nil {
 			first = g.newNode()
@@ -126,5 +144,15 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt, exit *Node) *Node {
 	if len(entry.Next) != 2 {
 		panic("if block must have 2 branches")
 	}
+	return entry
+}
+
+func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
+	var entry = g.newNode()
+	g.createIndex(entry)
+	var blockEntry = g.blockStmt(forStmt.Body, entry)
+	entry.Next = append(entry.Next, blockEntry)
+	entry.Next = append(entry.Next, exit)
+	entry.Text = string(g.Source[forStmt.For-1:forStmt.Body.Lbrace-1])
 	return entry
 }
