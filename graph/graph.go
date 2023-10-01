@@ -121,5 +121,8 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt, exit *Node) *Node {
 	} else {
 		entry.Next = append(entry.Next, exit)
 	}
+	if len(entry.Next) != 2 {
+		panic("if block must have 2 branches")
+	}
 	return entry
 }
