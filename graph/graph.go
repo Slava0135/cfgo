@@ -215,4 +215,4 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 	return entry
 }
 
-// continue, range, switch
+// TODO: range, switch
