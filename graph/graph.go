@@ -7,11 +7,11 @@ import (
 )
 
 type Graph struct {
-	Name      string
-	Source    []byte
-	Root      *Node
-	Exit      *Node
-	AllNodes  []*Node
+	Name     string
+	Source   []byte
+	Root     *Node
+	Exit     *Node
+	AllNodes []*Node
 }
 
 type Node struct {
@@ -21,8 +21,8 @@ type Node struct {
 }
 
 type Flow struct {
-	Entries map[*Node] struct{}
-	Exit *Node
+	Entries map[*Node]struct{}
+	Exits   map[*Node]struct{}
 }
 
 func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
@@ -34,7 +34,9 @@ func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	exitNode := graph.newNode()
 	exitNode.Text = "RETURN"
 	graph.Exit = exitNode
-	flow.Exit.Next = append(flow.Exit.Next, exitNode)
+	for n := range flow.Exits {
+		n.Next = append(n.Next, exitNode)
+	}
 	return &graph
 }
 
@@ -66,59 +68,63 @@ func (g *Graph) newNode() *Node {
 	return &node
 }
 
-func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) Flow {
+func newFlow() *Flow {
+	var flow Flow
+	flow.Entries = make(map[*Node]struct{})
+	flow.Exits = make(map[*Node]struct{})
+	return &flow
+}
+
+func mergeFlows(into, from *Flow) {
+	for n := range from.Entries {
+		into.Entries[n] = struct{}{}
+	}
+	for n := range from.Exits {
+		into.Exits[n] = struct{}{}
+	}
+}
+
+func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) *Flow {
 	var entryNode = g.newNode()
 	var exitNode = entryNode
-	var start = blockStmt.Lbrace+1
+	var start = blockStmt.Lbrace + 1
 	for _, stmt := range blockStmt.List {
 		switch s := stmt.(type) {
 		case *ast.IfStmt:
 			exitNode.Text = string(g.Source[start:s.Cond.End()])
 			ifFlow := g.ifStmt(s)
-			exitNode.Next = append(exitNode.Next, ifFlow.Exit)
-			if _, ok := ifFlow.Entries[ifFlow.Exit]; ok {
-				exitNode = g.newNode()
-				ifFlow.Exit.Next = append(ifFlow.Exit.Next, exitNode)
-			} else {
-				for e := range ifFlow.Entries {
-					exitNode.Next = append(exitNode.Next, e)
-				}
-				exitNode = ifFlow.Exit
+			var nextNode = g.newNode()
+			for n := range ifFlow.Exits {
+				n.Next = append(n.Next, nextNode)
 			}
+			exitNode.Next = append(exitNode.Next, nextNode)
+			exitNode = nextNode
 			start = s.End()
 		}
 	}
 	text := string(g.Source[start:blockStmt.Rbrace])
 	lines := strings.Split(text, "\n")
 	exitNode.Text = strings.Join(lines[:len(lines)-1], "\n")
-	var flow Flow
-	flow.Entries = make(map[*Node]struct{})
+	flow := newFlow()
 	flow.Entries[entryNode] = struct{}{}
-	flow.Exit = exitNode
+	flow.Exits[exitNode] = struct{}{}
 	return flow
 }
 
-func (g *Graph) ifStmt(ifStmt *ast.IfStmt) Flow {
+func (g *Graph) ifStmt(ifStmt *ast.IfStmt) *Flow {
 	blockFlow := g.blockStmt(ifStmt.Body)
 	if ifStmt.Else != nil {
-		var elseFlow Flow
+		var elseFlow *Flow
 		switch s := ifStmt.Else.(type) {
 		case *ast.BlockStmt:
 			elseFlow = g.blockStmt(s)
 		case *ast.IfStmt:
 			elseFlow = g.ifStmt(s)
 		}
-		var fullFlow Flow
-		fullFlow.Entries = make(map[*Node]struct{})
-		for n := range blockFlow.Entries {
-			fullFlow.Entries[n] = struct{}{}
-		}
-		for n := range elseFlow.Entries {
-			fullFlow.Entries[n] = struct{}{}
-		}
-		fullFlow.Exit = blockFlow.Exit
+		fullFlow := newFlow()
+		mergeFlows(fullFlow, blockFlow)
+		mergeFlows(fullFlow, elseFlow)
 		return fullFlow
 	}
 	return blockFlow
 }
-
