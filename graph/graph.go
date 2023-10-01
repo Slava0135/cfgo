@@ -20,16 +20,21 @@ type Node struct {
 	Next  []*Node
 }
 
+type Flow struct {
+	EntryNodes []*Node
+	ExitNode *Node
+}
+
 func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	var graph Graph
 	graph.Name = "function: '" + string(fd.Name.Name) + "'"
 	graph.Source = source
-	blockEntryNode, blockExitNode := graph.blockStmt(fd.Body)
-	graph.Root = blockEntryNode
+	flow := graph.blockStmt(fd.Body)
+	graph.Root = flow.EntryNodes[0]
 	exitNode := graph.newNode()
 	exitNode.Text = "RETURN"
 	graph.Exit = exitNode
-	blockExitNode.Next = append(blockExitNode.Next, exitNode)
+	flow.ExitNode.Next = append(flow.ExitNode.Next, exitNode)
 	return &graph
 }
 
@@ -61,22 +66,22 @@ func (g *Graph) newNode() *Node {
 	return &node
 }
 
-func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) (entryNode, exitNode *Node) {
-	entryNode = g.newNode()
-	exitNode = entryNode
+func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) Flow {
+	var entryNode = g.newNode()
+	var exitNode = entryNode
 	var start = blockStmt.Lbrace+1
 	for _, stmt := range blockStmt.List {
 		switch s := stmt.(type) {
 		case *ast.IfStmt:
 			exitNode.Text = string(g.Source[start:s.Cond.End()])
-			ifEntryNode, ifExitNode := g.ifStmt(s)
-			exitNode.Next = append(exitNode.Next, ifExitNode)
-			if (ifEntryNode != ifExitNode) {
-				exitNode.Next = append(exitNode.Next, ifEntryNode)
-				exitNode = ifExitNode
+			ifFlow := g.ifStmt(s)
+			exitNode.Next = append(exitNode.Next, ifFlow.ExitNode)
+			if (ifFlow.EntryNodes[0] != ifFlow.ExitNode) {
+				exitNode.Next = append(exitNode.Next, ifFlow.EntryNodes...)
+				exitNode = ifFlow.ExitNode
 			} else {
 				exitNode = g.newNode()
-				ifExitNode.Next = append(ifExitNode.Next, exitNode)
+				ifFlow.ExitNode.Next = append(ifFlow.ExitNode.Next, exitNode)
 			}
 			start = s.End()
 		}
@@ -84,11 +89,13 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) (entryNode, exitNode *Node) 
 	text := string(g.Source[start:blockStmt.Rbrace])
 	lines := strings.Split(text, "\n")
 	exitNode.Text = strings.Join(lines[:len(lines)-1], "\n")
-	return
+	var flow Flow
+	flow.EntryNodes = append(flow.EntryNodes, entryNode)
+	flow.ExitNode = exitNode
+	return flow
 }
 
-func (g *Graph) ifStmt(ifStmt *ast.IfStmt) (entryNode, exitNode *Node) {
-	entryNode, exitNode = g.blockStmt(ifStmt.Body)
-	return
+func (g *Graph) ifStmt(ifStmt *ast.IfStmt) Flow {
+	return g.blockStmt(ifStmt.Body)
 }
 
