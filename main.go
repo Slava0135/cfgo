@@ -22,6 +22,9 @@ func main() {
 		if fd, ok := n.(*ast.FuncDecl); ok {
 			graph := graph.BuildFuncGraph(source, fd)
 			fmt.Println(graph.String())
+			fmt.Println()
+			fmt.Println()
+			fmt.Println()
 			return false
 		} 
 		return true

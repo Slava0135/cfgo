@@ -39,16 +39,16 @@ func (g Graph) String() string {
 			continue
 		}
 		if len(n.Next) == 0 {
-			fmt.Appendf(res, "\n[ %d ]\n%s", n.Index, n.Text)
+			fmt.Appendf(res, "\n-- %d --\n%s", n.Index, n.Text)
 		} else {
-			res = fmt.Appendf(res, "\n[ %d -> ", n.Index)
+			res = fmt.Appendf(res, "\n-- %d >> ", n.Index)
 			for _, next := range n.Next {
 				res = fmt.Appendf(res, "%d ", next.Index)
 			}
-			res = fmt.Appendf(res, "]\n%s", n.Text)
+			res = fmt.Appendf(res, "--\n%s\n", n.Text)
 		}
 	}
-	res = fmt.Appendf(res, "\n[ %d ]\n%s\n", g.Exit.Index, g.Exit.Text)
+	res = fmt.Appendf(res, "\n-- %d --\n%s\n", g.Exit.Index, g.Exit.Text)
 	return string(res)
 }
 
