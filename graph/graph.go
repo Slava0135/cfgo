@@ -17,7 +17,7 @@ type Graph struct {
 type Node struct {
 	Index int
 	Text  string
-	Next  *Node
+	Next  []*Node
 }
 
 func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
@@ -29,7 +29,7 @@ func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	exitNode := graph.newNode()
 	exitNode.Text = "RETURN"
 	graph.Exit = exitNode
-	blockExitNode.Next = exitNode
+	blockExitNode.Next = append(blockExitNode.Next, exitNode)
 	return &graph
 }
 
@@ -40,7 +40,15 @@ func (g Graph) String() string {
 		if n == g.Exit {
 			break
 		}
-		res = fmt.Appendf(res, "\n[ %d -> %d ]\n%s", n.Index, n.Next.Index, n.Text)
+		if len(n.Next) == 0 {
+			fmt.Appendf(res, "\n[ %d ]\n%s", n.Index, n.Text)
+		} else {
+			res = fmt.Appendf(res, "\n[ %d -> ", n.Index)
+			for _, next := range n.Next {
+				fmt.Appendf(res, "%d", next.Index)
+			}
+			res = fmt.Appendf(res, " ]\n%s", n.Text)
+		}
 	}
 	res = fmt.Appendf(res, "\n[ %d ]\n%s\n", g.Exit.Index, g.Exit.Text)
 	return string(res)
@@ -62,12 +70,12 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) (entryNode, exitNode *Node) 
 		case *ast.IfStmt:
 			exitNode.Text = string(g.Source[start:s.Cond.End()])
 			ifEntryNode, ifExitNode := g.ifStmt(s)
-			exitNode.Next = ifEntryNode
+			exitNode.Next = append(exitNode.Next, ifEntryNode)
 			if (ifEntryNode != ifExitNode) {
 				exitNode = ifExitNode
 			} else {
 				exitNode = g.newNode()
-				ifExitNode.Next = exitNode
+				ifExitNode.Next = append(ifExitNode.Next, exitNode)
 			}
 			start = s.End()
 		}
