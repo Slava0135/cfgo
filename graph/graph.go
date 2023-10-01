@@ -26,6 +26,7 @@ func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	var exit = graph.newNode()
 	graph.Exit = exit
 	graph.Root = graph.blockStmt(fd.Body, exit)
+	graph.createIndex(exit)
 	exit.Text = "RETURN"
 	return &graph
 }
@@ -53,11 +54,12 @@ func (g Graph) String() string {
 
 func (g *Graph) newNode() *Node {
 	var node Node
+	node.Index = -1
 	return &node
 }
 
 func (g *Graph) createIndex(node *Node) {
-	if node.Index > 0 {
+	if node.Index >= 0 {
 		return
 	}
 	node.Index = len(g.AllNodes)
