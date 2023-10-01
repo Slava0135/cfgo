@@ -1,7 +1,8 @@
 package samples
 
 func simpleReturn() string {
-	return "hello"
-	var unreachable = "world"
+	var s = "hello"
+	return s + "world"
+	var unreachable = "code"
 	return unreachable
 }
