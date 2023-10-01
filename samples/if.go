@@ -23,3 +23,14 @@ func elseStatement() {
 	}
 	println(this)
 }
+
+func elseIfStatement() {
+	var what = 42
+	var this = 0
+	if what > 0 {
+		this = what
+	} else if what < 0 {
+		what = this
+	}
+	println(this)
+}

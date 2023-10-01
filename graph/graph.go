@@ -97,6 +97,9 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) *Flow {
 			for n := range ifFlow.Exits {
 				n.Next = append(n.Next, nextNode)
 			}
+			for n := range ifFlow.Entries {
+				exitNode.Next = append(exitNode.Next, n)
+			}
 			exitNode.Next = append(exitNode.Next, nextNode)
 			exitNode = nextNode
 			start = s.End()
