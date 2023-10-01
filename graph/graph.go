@@ -115,7 +115,8 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 				g.createIndex(first)
 				last = first
 			}
-			last.Text = string(g.Source[s.Pos()-1:s.End()])
+			text += string(g.Source[s.Pos()-1:s.End()])
+			last.Text = text
 			last.Next = append(last.Next, g.Exit)
 			return first
 		}
