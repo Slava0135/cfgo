@@ -99,6 +99,26 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) Flow {
 }
 
 func (g *Graph) ifStmt(ifStmt *ast.IfStmt) Flow {
-	return g.blockStmt(ifStmt.Body)
+	blockFlow := g.blockStmt(ifStmt.Body)
+	if ifStmt.Else != nil {
+		var elseFlow Flow
+		switch s := ifStmt.Else.(type) {
+		case *ast.BlockStmt:
+			elseFlow = g.blockStmt(s)
+		case *ast.IfStmt:
+			elseFlow = g.ifStmt(s)
+		}
+		var fullFlow Flow
+		fullFlow.Entries = make(map[*Node]struct{})
+		for n := range blockFlow.Entries {
+			fullFlow.Entries[n] = struct{}{}
+		}
+		for n := range elseFlow.Entries {
+			fullFlow.Entries[n] = struct{}{}
+		}
+		fullFlow.Exit = blockFlow.Exit
+		return fullFlow
+	}
+	return blockFlow
 }
 
