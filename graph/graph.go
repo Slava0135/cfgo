@@ -71,42 +71,34 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 	var last *Node
 	var text = ""
 	for i, stmt := range blockStmt.List {
+		processInnerStmt := func(process func(innerExit *Node) *Node) {
+			var innerExit *Node
+			if i < len(blockStmt.List) - 1 {
+				innerExit = g.newNode()
+			} else {
+				innerExit = exit
+			}
+			var innerEntry = process(innerExit)
+			if first == nil {
+				first = innerEntry
+			} else {
+				last.Next = append(last.Next, innerEntry)
+				last.Text = text
+				text = ""
+			}
+			last = innerExit
+			g.createIndex(last)
+		}
 		switch s := stmt.(type) {
 		case *ast.IfStmt:
-			var ifExit *Node
-			if i < len(blockStmt.List) - 1 {
-				ifExit = g.newNode()
-			} else {
-				ifExit = exit
-			}
-			var ifEntry = g.ifStmt(s, ifExit)
-			if first == nil {
-				first = ifEntry
-			} else {
-				last.Next = append(last.Next, ifEntry)
-				last.Text = text
-				text = ""
-			}
-			last = ifExit
-			g.createIndex(last)
+			processInnerStmt(func(innerExit *Node) *Node {
+				return g.ifStmt(s, innerExit)
+			})
 			continue
 		case *ast.ForStmt:
-			var forExit *Node
-			if i < len(blockStmt.List) - 1 {
-				forExit = g.newNode()
-			} else {
-				forExit = exit
-			}
-			var forEntry = g.forStmt(s, forExit)
-			if first == nil {
-				first = forEntry
-			} else {
-				last.Next = append(last.Next, forEntry)
-				last.Text = text
-				text = ""
-			}
-			last = forExit
-			g.createIndex(last)
+			processInnerStmt(func(innerExit *Node) *Node {
+				return g.forStmt(s, innerExit)
+			})
 			continue
 		}
 		if first == nil {
