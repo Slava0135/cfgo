@@ -14,3 +14,10 @@ func forInitStatement() {
 	}
 	println("no foo")
 }
+
+func forPostStatement() {
+	var foo = 0
+	for ;foo < 10; foo += 1 {
+		println(foo)
+	}
+}

@@ -142,6 +142,7 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt, exit *Node) *Node {
 func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 	var entry = g.newNode()
 	var condition = entry 
+	var post = entry 
 	if forStmt.Init != nil {
 		entry = g.newNode()
 		g.createIndex(entry)
@@ -149,7 +150,13 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 		entry.Text = string(g.Source[forStmt.Init.Pos()-1:forStmt.Init.End()])
 	}
 	g.createIndex(condition)
-	var blockEntry = g.blockStmt(forStmt.Body, condition)
+	if forStmt.Post != nil {
+		post = g.newNode()
+		g.createIndex(post)
+		post.Next = append(post.Next, condition)
+		post.Text = string(g.Source[forStmt.Post.Pos()-1:forStmt.Post.End()])
+	}
+	var blockEntry = g.blockStmt(forStmt.Body, post)
 	condition.Next = append(condition.Next, blockEntry)
 	condition.Next = append(condition.Next, exit)
 	condition.Text = string(g.Source[forStmt.Cond.Pos()-1:forStmt.Cond.End()])
