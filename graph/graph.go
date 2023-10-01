@@ -21,8 +21,8 @@ type Node struct {
 }
 
 type Flow struct {
-	EntryNodes []*Node
-	ExitNode *Node
+	Entries map[*Node] struct{}
+	Exit *Node
 }
 
 func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
@@ -30,11 +30,11 @@ func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	graph.Name = "function: '" + string(fd.Name.Name) + "'"
 	graph.Source = source
 	flow := graph.blockStmt(fd.Body)
-	graph.Root = flow.EntryNodes[0]
+	graph.Root = graph.AllNodes[0]
 	exitNode := graph.newNode()
 	exitNode.Text = "RETURN"
 	graph.Exit = exitNode
-	flow.ExitNode.Next = append(flow.ExitNode.Next, exitNode)
+	flow.Exit.Next = append(flow.Exit.Next, exitNode)
 	return &graph
 }
 
@@ -75,13 +75,15 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) Flow {
 		case *ast.IfStmt:
 			exitNode.Text = string(g.Source[start:s.Cond.End()])
 			ifFlow := g.ifStmt(s)
-			exitNode.Next = append(exitNode.Next, ifFlow.ExitNode)
-			if (ifFlow.EntryNodes[0] != ifFlow.ExitNode) {
-				exitNode.Next = append(exitNode.Next, ifFlow.EntryNodes...)
-				exitNode = ifFlow.ExitNode
-			} else {
+			exitNode.Next = append(exitNode.Next, ifFlow.Exit)
+			if _, ok := ifFlow.Entries[ifFlow.Exit]; ok {
 				exitNode = g.newNode()
-				ifFlow.ExitNode.Next = append(ifFlow.ExitNode.Next, exitNode)
+				ifFlow.Exit.Next = append(ifFlow.Exit.Next, exitNode)
+			} else {
+				for e := range ifFlow.Entries {
+					exitNode.Next = append(exitNode.Next, e)
+				}
+				exitNode = ifFlow.Exit
 			}
 			start = s.End()
 		}
@@ -90,8 +92,9 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) Flow {
 	lines := strings.Split(text, "\n")
 	exitNode.Text = strings.Join(lines[:len(lines)-1], "\n")
 	var flow Flow
-	flow.EntryNodes = append(flow.EntryNodes, entryNode)
-	flow.ExitNode = exitNode
+	flow.Entries = make(map[*Node]struct{})
+	flow.Entries[entryNode] = struct{}{}
+	flow.Exit = exitNode
 	return flow
 }
 
