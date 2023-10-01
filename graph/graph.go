@@ -87,7 +87,7 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt, exit *Node) *Node {
 	var entry = g.newNode()
 	var blockEntry = g.blockStmt(ifStmt.Body, exit)
 	entry.Next = append(entry.Next, blockEntry)
-	entry.Text = "if"
+	entry.Text = string(g.Source[ifStmt.If-1:ifStmt.Cond.End()])
 	if ifStmt.Else != nil {
 		switch s := ifStmt.Else.(type) {
 		case *ast.BlockStmt:
