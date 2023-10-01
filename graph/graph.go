@@ -12,6 +12,7 @@ type Graph struct {
 	Root     *Node
 	Exit     *Node
 	AllNodes []*Node
+	LoopEnd  *Node
 }
 
 type Node struct {
@@ -119,6 +120,16 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 			last.Text = text
 			last.Next = append(last.Next, g.Exit)
 			return first
+		case *ast.BranchStmt:
+			if first == nil {
+				first = g.newNode()
+				g.createIndex(first)
+				last = first
+			}
+			text += string(g.Source[s.Pos()-1:s.End()])
+			last.Text = text
+			last.Next = append(last.Next, g.LoopEnd)
+			return first
 		}
 		if first == nil {
 			first = g.newNode()
@@ -175,11 +186,14 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 		post.Next = append(post.Next, condition)
 		post.Text = string(g.Source[forStmt.Post.Pos()-1:forStmt.Post.End()])
 	}
+	var prevLoopEnd = g.LoopEnd
+	g.LoopEnd = exit
 	var blockEntry = g.blockStmt(forStmt.Body, post)
+	g.LoopEnd = prevLoopEnd
 	condition.Next = append(condition.Next, blockEntry)
 	condition.Next = append(condition.Next, exit)
 	condition.Text = string(g.Source[forStmt.Cond.Pos()-1:forStmt.Cond.End()])
 	return entry
 }
 
-// return, break, continue, range, switch
+// break, continue, range, switch
