@@ -79,7 +79,6 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 	var first *Node
 	var last *Node
 	var text = ""
-	loop:
 	for i, stmt := range blockStmt.List {
 		processInnerStmt := func(process func(innerExit *Node) *Node) {
 			var innerExit *Node
@@ -116,8 +115,9 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 				g.createIndex(first)
 				last = first
 			}
-			text += string(g.Source[s.Pos()-1:s.End()])
-			break loop
+			last.Text = string(g.Source[s.Pos()-1:s.End()])
+			last.Next = append(last.Next, g.Exit)
+			return first
 		}
 		if first == nil {
 			first = g.newNode()
