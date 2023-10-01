@@ -3,6 +3,7 @@ package graph
 import (
 	"fmt"
 	"go/ast"
+	"strings"
 )
 
 type Graph struct {
@@ -38,14 +39,15 @@ func (g Graph) String() string {
 		if n == g.Exit {
 			continue
 		}
+		var text = strings.TrimSuffix(n.Text, "\n")
 		if len(n.Next) == 0 {
-			fmt.Appendf(res, "\n-- %d --\n%s", n.Index, n.Text)
+			fmt.Appendf(res, "\n-- %d --\n%s", n.Index, text)
 		} else {
 			res = fmt.Appendf(res, "\n-- %d >> ", n.Index)
 			for _, next := range n.Next {
 				res = fmt.Appendf(res, "%d ", next.Index)
 			}
-			res = fmt.Appendf(res, "--\n%s\n", n.Text)
+			res = fmt.Appendf(res, "--\n%s\n", text)
 		}
 	}
 	res = fmt.Appendf(res, "\n-- %d --\n%s\n", g.Exit.Index, g.Exit.Text)
