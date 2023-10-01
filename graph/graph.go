@@ -11,12 +11,11 @@ type Graph struct {
 	Source    []byte
 	Root      *Node
 	Exit      *Node
-	NodeCount uint
 	AllNodes  []*Node
 }
 
 type Node struct {
-	Index uint
+	Index int
 	Text  string
 	Next  *Node
 }
@@ -49,8 +48,7 @@ func (g Graph) String() string {
 
 func (g *Graph) newNode() *Node {
 	var node Node
-	node.Index = g.NodeCount
-	g.NodeCount += 1
+	node.Index = len(g.AllNodes)
 	g.AllNodes = append(g.AllNodes, &node)
 	return &node
 }
