@@ -60,8 +60,8 @@ func (g *Graph) newNode() *Node {
 
 func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 	var entry = g.newNode()
-	entry.Text = "block"
 	var next = entry
+	var text = ""
 	for i, stmt := range blockStmt.List {
 		switch s := stmt.(type) {
 		case *ast.IfStmt:
@@ -73,11 +73,15 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 			}
 			var ifEntry = g.ifStmt(s, ifExit)
 			next.Next = append(next.Next, ifEntry)
+			next.Text = text
+			text = ""
 			next = ifExit
+			continue
 		}
+		text += string(g.Source[stmt.Pos()-1:stmt.End()])
 	}
 	if next != exit {
-		next.Text = "block"
+		next.Text = text
 		next.Next = append(next.Next, exit)
 	}
 	return entry
