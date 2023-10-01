@@ -21,3 +21,8 @@ func forPostStatement() {
 		println(foo)
 	}
 }
+
+func forEmpty() {
+	for {
+	}
+}

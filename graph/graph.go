@@ -207,7 +207,11 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 	var blockEntry = g.blockStmt(forStmt.Body, post)
 	condition.Next = append(condition.Next, blockEntry)
 	condition.Next = append(condition.Next, exit)
-	condition.Text = string(g.Source[forStmt.Cond.Pos()-1:forStmt.Cond.End()])
+	if forStmt.Cond != nil {
+		condition.Text = string(g.Source[forStmt.Cond.Pos()-1:forStmt.Cond.End()])
+	} else {
+		condition.Text = "FOREVER"
+	}
 	return entry
 }
 
