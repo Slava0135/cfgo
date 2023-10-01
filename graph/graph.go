@@ -79,6 +79,7 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 	var first *Node
 	var last *Node
 	var text = ""
+	loop:
 	for i, stmt := range blockStmt.List {
 		processInnerStmt := func(process func(innerExit *Node) *Node) {
 			var innerExit *Node
@@ -109,6 +110,14 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 				return g.forStmt(s, innerExit)
 			})
 			continue
+		case *ast.ReturnStmt:
+			if first == nil {
+				first = g.newNode()
+				g.createIndex(first)
+				last = first
+			}
+			text += string(g.Source[s.Pos()-1:s.End()])
+			break loop
 		}
 		if first == nil {
 			first = g.newNode()
@@ -171,3 +180,5 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 	condition.Text = string(g.Source[forStmt.Cond.Pos()-1:forStmt.Cond.End()])
 	return entry
 }
+
+// return, break, continue, range, switch
