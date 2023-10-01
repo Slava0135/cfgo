@@ -7,3 +7,10 @@ func whileStatement() {
 	}
 	println(foo)
 }
+
+func forInitStatement() {
+	for foo := 0; foo < 10; {
+		foo += 1
+	}
+	println("no foo")
+}

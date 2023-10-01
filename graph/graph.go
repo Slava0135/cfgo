@@ -141,10 +141,17 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt, exit *Node) *Node {
 
 func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 	var entry = g.newNode()
-	g.createIndex(entry)
-	var blockEntry = g.blockStmt(forStmt.Body, entry)
-	entry.Next = append(entry.Next, blockEntry)
-	entry.Next = append(entry.Next, exit)
-	entry.Text = string(g.Source[forStmt.For-1:forStmt.Body.Lbrace-1])
+	var condition = entry 
+	if forStmt.Init != nil {
+		entry = g.newNode()
+		g.createIndex(entry)
+		entry.Next = append(entry.Next, condition)
+		entry.Text = string(g.Source[forStmt.Init.Pos()-1:forStmt.Init.End()])
+	}
+	g.createIndex(condition)
+	var blockEntry = g.blockStmt(forStmt.Body, condition)
+	condition.Next = append(condition.Next, blockEntry)
+	condition.Next = append(condition.Next, exit)
+	condition.Text = string(g.Source[forStmt.Cond.Pos()-1:forStmt.Cond.End()])
 	return entry
 }
