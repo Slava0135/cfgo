@@ -53,9 +53,15 @@ func (g Graph) String() string {
 
 func (g *Graph) newNode() *Node {
 	var node Node
-	node.Index = len(g.AllNodes)
-	g.AllNodes = append(g.AllNodes, &node)
 	return &node
+}
+
+func (g *Graph) createIndex(node *Node) {
+	if node.Index > 0 {
+		return
+	}
+	node.Index = len(g.AllNodes)
+	g.AllNodes = append(g.AllNodes, node)
 }
 
 func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
@@ -80,10 +86,12 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 				text = ""
 			}
 			last = ifExit
+			g.createIndex(last)
 			continue
 		}
 		if first == nil {
 			first = g.newNode()
+			g.createIndex(first)
 			last = first
 		}
 		text += string(g.Source[stmt.Pos()-1:stmt.End()])
@@ -97,6 +105,7 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 
 func (g *Graph) ifStmt(ifStmt *ast.IfStmt, exit *Node) *Node {
 	var entry = g.newNode()
+	g.createIndex(entry)
 	var blockEntry = g.blockStmt(ifStmt.Body, exit)
 	entry.Next = append(entry.Next, blockEntry)
 	entry.Text = string(g.Source[ifStmt.If-1:ifStmt.Cond.End()])
