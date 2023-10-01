@@ -3,6 +3,7 @@ package graph
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"strings"
 )
 
@@ -13,6 +14,7 @@ type Graph struct {
 	Exit     *Node
 	AllNodes []*Node
 	LoopEnd  *Node
+	LoopPost *Node
 }
 
 type Node struct {
@@ -121,6 +123,16 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 			last.Next = append(last.Next, g.Exit)
 			return first
 		case *ast.BranchStmt:
+			var gotoNode *Node
+			switch s.Tok {
+			case token.BREAK:
+				gotoNode = g.LoopEnd
+			case token.CONTINUE:
+				gotoNode = g.LoopPost
+			}
+			if gotoNode == nil {
+				continue
+			}
 			if first == nil {
 				first = g.newNode()
 				g.createIndex(first)
@@ -128,7 +140,7 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 			}
 			text += string(g.Source[s.Pos()-1:s.End()])
 			last.Text = text
-			last.Next = append(last.Next, g.LoopEnd)
+			last.Next = append(last.Next, gotoNode)
 			return first
 		}
 		if first == nil {
@@ -172,7 +184,6 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt, exit *Node) *Node {
 func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 	var entry = g.newNode()
 	var condition = entry 
-	var post = entry 
 	if forStmt.Init != nil {
 		entry = g.newNode()
 		g.createIndex(entry)
@@ -180,6 +191,7 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 		entry.Text = string(g.Source[forStmt.Init.Pos()-1:forStmt.Init.End()])
 	}
 	g.createIndex(condition)
+	var post = condition
 	if forStmt.Post != nil {
 		post = g.newNode()
 		g.createIndex(post)
@@ -187,13 +199,16 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 		post.Text = string(g.Source[forStmt.Post.Pos()-1:forStmt.Post.End()])
 	}
 	var prevLoopEnd = g.LoopEnd
+	defer func() { g.LoopEnd = prevLoopEnd }()
+	var prevLoopPost = g.LoopPost
+	defer func() { g.LoopPost = prevLoopPost }()
 	g.LoopEnd = exit
+	g.LoopPost = post
 	var blockEntry = g.blockStmt(forStmt.Body, post)
-	g.LoopEnd = prevLoopEnd
 	condition.Next = append(condition.Next, blockEntry)
 	condition.Next = append(condition.Next, exit)
 	condition.Text = string(g.Source[forStmt.Cond.Pos()-1:forStmt.Cond.End()])
 	return entry
 }
 
-// break, continue, range, switch
+// continue, range, switch
