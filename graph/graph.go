@@ -45,9 +45,9 @@ func (g Graph) String() string {
 		} else {
 			res = fmt.Appendf(res, "\n[ %d -> ", n.Index)
 			for _, next := range n.Next {
-				fmt.Appendf(res, "%d", next.Index)
+				res = fmt.Appendf(res, "%d ", next.Index)
 			}
-			res = fmt.Appendf(res, " ]\n%s", n.Text)
+			res = fmt.Appendf(res, "]\n%s", n.Text)
 		}
 	}
 	res = fmt.Appendf(res, "\n[ %d ]\n%s\n", g.Exit.Index, g.Exit.Text)
@@ -70,8 +70,9 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt) (entryNode, exitNode *Node) 
 		case *ast.IfStmt:
 			exitNode.Text = string(g.Source[start:s.Cond.End()])
 			ifEntryNode, ifExitNode := g.ifStmt(s)
-			exitNode.Next = append(exitNode.Next, ifEntryNode)
+			exitNode.Next = append(exitNode.Next, ifExitNode)
 			if (ifEntryNode != ifExitNode) {
+				exitNode.Next = append(exitNode.Next, ifEntryNode)
 				exitNode = ifExitNode
 			} else {
 				exitNode = g.newNode()
