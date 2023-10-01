@@ -17,3 +17,14 @@ func ifReturn() string {
 	}
 	return str
 }
+
+func forReturn() bool {
+	var i = 0
+	for i < 10 {
+		if i == 5 {
+			return false
+		}
+		i += 1
+	}
+	return true
+}
