@@ -118,6 +118,8 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt, exit *Node) *Node {
 			var elseIfEntry = g.ifStmt(s, exit)
 			entry.Next = append(entry.Next, elseIfEntry)
 		}
+	} else {
+		entry.Next = append(entry.Next, exit)
 	}
 	return entry
 }
