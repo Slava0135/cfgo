@@ -67,6 +67,13 @@ func (g *Graph) createIndex(node *Node) {
 }
 
 func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
+	if len(blockStmt.List) == 0 {
+		var node = g.newNode()
+		g.createIndex(node)
+		node.Text = "EMPTY BLOCK"
+		node.Next = append(node.Next, exit)
+		return node
+	}
 	var first *Node
 	var last *Node
 	var text = ""
