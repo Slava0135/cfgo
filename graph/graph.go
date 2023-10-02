@@ -63,7 +63,7 @@ func (g Graph) Dot() string {
 	res = fmt.Appendf(res, "\tlabel=\"%s\"\n", g.Name)
 	for _, node := range g.AllNodes {
 		text := strings.ReplaceAll(node.Text, "\n", "\\n")
-		text = strings.ReplaceAll(text, "\"", "\\\"")
+		text = strings.ReplaceAll(text, "\"", "'")
 		res = fmt.Appendf(res, "\t%s_%d [shape=box, label=\"%s\"]\n", g.Name, node.Index, text)
 	}
 	for _, source := range g.AllNodes {
