@@ -42,6 +42,8 @@ func main() {
 		log.Fatalln(err)
 	}
 	var output []byte
-	output = fmt.Appendf(output, "strict digraph {\n\tlabel = \"%s\"\n%s}", filename, graphsDot)
+	output = fmt.Appendf(output, "strict digraph {\n")
+	output = fmt.Appendf(output, "\tlabel = \"%s\"\n", filename)
+	output = fmt.Appendf(output, "%s}", graphsDot)
 	outputFile.WriteString(string(output))
 }

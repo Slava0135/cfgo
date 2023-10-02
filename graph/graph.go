@@ -61,6 +61,10 @@ func (g Graph) Dot() string {
 	var res []byte
 	res = fmt.Appendf(res, "subgraph %s {\n", g.Name)
 	res = fmt.Appendf(res, "\tlabel=\"%s\"\n", g.Name)
+	for _, node := range g.AllNodes {
+		res = fmt.Appendf(res, "\t%s_%d [shape=box]\n", g.Name, node.Index)
+		// res = fmt.Appendf(res, "\t%s_%d [label=\"%s\"]\n", g.Name, node.Index, node.Text)
+	}
 	for _, source := range g.AllNodes {
 		for _, dest := range source.Next {
 			res = fmt.Appendf(res, "\t%s_%d -> %s_%d\n", g.Name, source.Index, g.Name, dest.Index)
