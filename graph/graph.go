@@ -20,8 +20,13 @@ type Graph struct {
 type Node struct {
 	Index int
 	Text  string
-	Next  []*Node
+	Next  []Link
 	Kind  Kind
+}
+
+type Link struct {
+	Node *Node
+	Info string
 }
 
 type Kind int
@@ -58,7 +63,7 @@ func (g Graph) String() string {
 		} else {
 			res = fmt.Appendf(res, "\n-- %d >> ", n.Index)
 			for _, next := range n.Next {
-				res = fmt.Appendf(res, "%d ", next.Index)
+				res = fmt.Appendf(res, "%d ", next.Node.Index)
 			}
 			res = fmt.Appendf(res, "--\n%s\n", text)
 		}
@@ -85,7 +90,7 @@ func (g Graph) Dot() string {
 	}
 	for _, source := range g.AllNodes {
 		for _, dest := range source.Next {
-			res = fmt.Appendf(res, "\t%s_%d -> %s_%d\n", g.Name, source.Index, g.Name, dest.Index)
+			res = fmt.Appendf(res, "\t%s_%d -> %s_%d [label=\"%s\"]\n", g.Name, source.Index, g.Name, dest.Node.Index, dest.Info)
 		}
 	}
 	res = fmt.Appendf(res, "}")
@@ -111,7 +116,7 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 		var node = g.newNode()
 		g.createIndex(node)
 		node.Text = "EMPTY BLOCK"
-		node.Next = append(node.Next, exit)
+		node.Next = append(node.Next, Link{exit, ""})
 		return node
 	}
 	var first *Node
@@ -129,7 +134,7 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 			if first == nil {
 				first = innerEntry
 			} else {
-				last.Next = append(last.Next, innerEntry)
+				last.Next = append(last.Next, Link{innerEntry, ""})
 				last.Text = text
 				text = ""
 			}
@@ -160,7 +165,7 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 			}
 			text += string(g.Source[s.Pos()-1:s.End()])
 			last.Text = text
-			last.Next = append(last.Next, g.Exit)
+			last.Next = append(last.Next, Link{g.Exit, ""})
 			last.Kind = BRANCH
 			return first
 		case *ast.BranchStmt:
@@ -181,7 +186,7 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 			}
 			text += string(g.Source[s.Pos()-1:s.End()])
 			last.Text = text
-			last.Next = append(last.Next, gotoNode)
+			last.Next = append(last.Next, Link{gotoNode, ""})
 			last.Kind = BRANCH
 			return first
 		}
@@ -194,7 +199,7 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 	}
 	if last != exit {
 		last.Text = text
-		last.Next = append(last.Next, exit)
+		last.Next = append(last.Next, Link{exit, ""})
 	}
 	return first
 }
@@ -204,19 +209,19 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt, exit *Node) *Node {
 	g.createIndex(entry)
 	entry.Kind = CONDITION
 	var blockEntry = g.blockStmt(ifStmt.Body, exit)
-	entry.Next = append(entry.Next, blockEntry)
+	entry.Next = append(entry.Next, Link{blockEntry, ""})
 	entry.Text = string(g.Source[ifStmt.If-1:ifStmt.Cond.End()])
 	if ifStmt.Else != nil {
 		switch s := ifStmt.Else.(type) {
 		case *ast.BlockStmt:
 			var elseEntry = g.blockStmt(s, exit)
-			entry.Next = append(entry.Next, elseEntry) 
+			entry.Next = append(entry.Next, Link{elseEntry, ""}) 
 		case *ast.IfStmt:
 			var elseIfEntry = g.ifStmt(s, exit)
-			entry.Next = append(entry.Next, elseIfEntry)
+			entry.Next = append(entry.Next, Link{elseIfEntry, ""})
 		}
 	} else {
-		entry.Next = append(entry.Next, exit)
+		entry.Next = append(entry.Next, Link{exit, ""})
 	}
 	if len(entry.Next) != 2 {
 		panic("if block must have 2 branches")
@@ -230,7 +235,7 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 	if forStmt.Init != nil {
 		entry = g.newNode()
 		g.createIndex(entry)
-		entry.Next = append(entry.Next, condition)
+		entry.Next = append(entry.Next, Link{condition, ""})
 		entry.Text = string(g.Source[forStmt.Init.Pos()-1:forStmt.Init.End()])
 	}
 	g.createIndex(condition)
@@ -239,7 +244,7 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 	if forStmt.Post != nil {
 		post = g.newNode()
 		g.createIndex(post)
-		post.Next = append(post.Next, condition)
+		post.Next = append(post.Next, Link{condition, ""})
 		post.Text = string(g.Source[forStmt.Post.Pos()-1:forStmt.Post.End()])
 	}
 	var prevLoopEnd = g.LoopEnd
@@ -249,8 +254,8 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 	g.LoopEnd = exit
 	g.LoopPost = post
 	var blockEntry = g.blockStmt(forStmt.Body, post)
-	condition.Next = append(condition.Next, blockEntry)
-	condition.Next = append(condition.Next, exit)
+	condition.Next = append(condition.Next, Link{blockEntry, ""})
+	condition.Next = append(condition.Next, Link{exit, ""})
 	if forStmt.Cond != nil {
 		condition.Text = string(g.Source[forStmt.Cond.Pos()-1:forStmt.Cond.End()])
 	} else {
@@ -271,8 +276,8 @@ func (g *Graph) rangeStmt(rangeStmt *ast.RangeStmt, exit *Node) *Node {
 	g.LoopEnd = exit
 	g.LoopPost = entry
 	var blockEntry = g.blockStmt(rangeStmt.Body, entry)
-	entry.Next = append(entry.Next, blockEntry)
-	entry.Next = append(entry.Next, exit)
+	entry.Next = append(entry.Next, Link{blockEntry, ""})
+	entry.Next = append(entry.Next, Link{exit, ""})
 	return entry
 }
 
