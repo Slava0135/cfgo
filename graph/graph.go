@@ -57,6 +57,13 @@ func (g Graph) String() string {
 	return string(res)
 }
 
+func (g Graph) Dot() string {
+	var res []byte
+	res = fmt.Appendf(res, "strict digraph \"%s\" {\n", g.Name)
+	res = fmt.Appendf(res, "}")
+	return string(res)
+}
+
 func (g *Graph) newNode() *Node {
 	var node Node
 	node.Index = -1

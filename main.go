@@ -20,14 +20,23 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	f, _ := parser.ParseFile(fset, filename, nil, 0)
+	f, err := parser.ParseFile(fset, filename, nil, 0)
+	if err != nil {
+		log.Fatalln(err)
+	}
 	ast.Inspect(f, func(n ast.Node) bool {
 		if fd, ok := n.(*ast.FuncDecl); ok {
 			graph := graph.BuildFuncGraph(source, fd)
 			fmt.Println(graph.String())
+			fmt.Println(graph.Dot())
 			fmt.Println()
 			fmt.Println()
-			fmt.Println()
+			fileName := fmt.Sprintf("%s.cfg.dot", fd.Name.Name)
+			outputFile, err := os.Create(fileName)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			outputFile.WriteString(graph.Dot() + "\n")
 			return false
 		} 
 		return true
