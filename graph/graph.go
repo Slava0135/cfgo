@@ -262,6 +262,7 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 func (g *Graph) rangeStmt(rangeStmt *ast.RangeStmt, exit *Node) *Node {
 	var entry = g.newNode()
 	g.createIndex(entry)
+	entry.Kind = CONDITION
 	entry.Text = string(g.Source[rangeStmt.Pos()-1:rangeStmt.Body.Lbrace-2])
 	var prevLoopEnd = g.LoopEnd
 	defer func() { g.LoopEnd = prevLoopEnd }()
