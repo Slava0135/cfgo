@@ -62,8 +62,9 @@ func (g Graph) Dot() string {
 	res = fmt.Appendf(res, "subgraph %s {\n", g.Name)
 	res = fmt.Appendf(res, "\tlabel=\"%s\"\n", g.Name)
 	for _, node := range g.AllNodes {
-		res = fmt.Appendf(res, "\t%s_%d [shape=box]\n", g.Name, node.Index)
-		// res = fmt.Appendf(res, "\t%s_%d [label=\"%s\"]\n", g.Name, node.Index, node.Text)
+		text := strings.ReplaceAll(node.Text, "\n", "\\n")
+		text = strings.ReplaceAll(text, "\"", "\\\"")
+		res = fmt.Appendf(res, "\t%s_%d [shape=box, label=\"%s\"]\n", g.Name, node.Index, text)
 	}
 	for _, source := range g.AllNodes {
 		for _, dest := range source.Next {
