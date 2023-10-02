@@ -21,13 +21,23 @@ type Node struct {
 	Index int
 	Text  string
 	Next  []*Node
+	Kind  Kind
 }
+
+type Kind int
+
+const (
+	SEQUENCE Kind = iota
+	CONDITION
+	BRANCH
+)
 
 func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	var graph Graph
 	graph.Name = fd.Name.Name
 	graph.Source = source
 	var exit = graph.newNode()
+	exit.Kind = BRANCH
 	graph.Exit = exit
 	graph.Root = graph.blockStmt(fd.Body, exit)
 	graph.createIndex(exit)
@@ -59,12 +69,19 @@ func (g Graph) String() string {
 
 func (g Graph) Dot() string {
 	var res []byte
-	res = fmt.Appendf(res, "subgraph %s {\n", g.Name)
+	res = fmt.Appendf(res, "subgraph cluster_%s {\n", g.Name)
 	res = fmt.Appendf(res, "\tlabel=\"%s\"\n", g.Name)
 	for _, node := range g.AllNodes {
 		text := strings.ReplaceAll(node.Text, "\n", "\\n")
 		text = strings.ReplaceAll(text, "\"", "'")
-		res = fmt.Appendf(res, "\t%s_%d [shape=box, label=\"%s\"]\n", g.Name, node.Index, text)
+		var shape = "box"
+		switch node.Kind {
+		case CONDITION:
+			shape = "diamond"
+		case BRANCH:
+			shape = "cds"
+		}
+		res = fmt.Appendf(res, "\t%s_%d [shape=%s, label=\"%s\"]\n", g.Name, node.Index, shape, text)
 	}
 	for _, source := range g.AllNodes {
 		for _, dest := range source.Next {
@@ -144,6 +161,7 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 			text += string(g.Source[s.Pos()-1:s.End()])
 			last.Text = text
 			last.Next = append(last.Next, g.Exit)
+			last.Kind = BRANCH
 			return first
 		case *ast.BranchStmt:
 			var gotoNode *Node
@@ -164,6 +182,7 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 			text += string(g.Source[s.Pos()-1:s.End()])
 			last.Text = text
 			last.Next = append(last.Next, gotoNode)
+			last.Kind = BRANCH
 			return first
 		}
 		if first == nil {
@@ -183,6 +202,7 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 func (g *Graph) ifStmt(ifStmt *ast.IfStmt, exit *Node) *Node {
 	var entry = g.newNode()
 	g.createIndex(entry)
+	entry.Kind = CONDITION
 	var blockEntry = g.blockStmt(ifStmt.Body, exit)
 	entry.Next = append(entry.Next, blockEntry)
 	entry.Text = string(g.Source[ifStmt.If-1:ifStmt.Cond.End()])
@@ -214,6 +234,7 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 		entry.Text = string(g.Source[forStmt.Init.Pos()-1:forStmt.Init.End()])
 	}
 	g.createIndex(condition)
+	condition.Kind = CONDITION
 	var post = condition
 	if forStmt.Post != nil {
 		post = g.newNode()
