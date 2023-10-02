@@ -25,7 +25,7 @@ type Node struct {
 
 func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	var graph Graph
-	graph.Name = "function: '" + string(fd.Name.Name) + "'"
+	graph.Name = fd.Name.Name
 	graph.Source = source
 	var exit = graph.newNode()
 	graph.Exit = exit
@@ -59,7 +59,13 @@ func (g Graph) String() string {
 
 func (g Graph) Dot() string {
 	var res []byte
-	res = fmt.Appendf(res, "strict digraph \"%s\" {\n", g.Name)
+	res = fmt.Appendf(res, "subgraph %s {\n", g.Name)
+	res = fmt.Appendf(res, "\tlabel=\"%s\"\n", g.Name)
+	for _, source := range g.AllNodes {
+		for _, dest := range source.Next {
+			res = fmt.Appendf(res, "\t%s_%d -> %s_%d\n", g.Name, source.Index, g.Name, dest.Index)
+		}
+	}
 	res = fmt.Appendf(res, "}")
 	return string(res)
 }

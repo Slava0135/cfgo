@@ -24,6 +24,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	var graphsDot string
 	ast.Inspect(f, func(n ast.Node) bool {
 		if fd, ok := n.(*ast.FuncDecl); ok {
 			graph := graph.BuildFuncGraph(source, fd)
@@ -31,14 +32,16 @@ func main() {
 			fmt.Println(graph.Dot())
 			fmt.Println()
 			fmt.Println()
-			fileName := fmt.Sprintf("%s.cfg.dot", fd.Name.Name)
-			outputFile, err := os.Create(fileName)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			outputFile.WriteString(graph.Dot() + "\n")
+			graphsDot += graph.Dot() + "\n"
 			return false
 		} 
 		return true
 	})
+	outputFile, err := os.Create("cfg.dot")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	var output []byte
+	output = fmt.Appendf(output, "strict digraph {\n\tlabel = \"%s\"\n%s}", filename, graphsDot)
+	outputFile.WriteString(string(output))
 }
