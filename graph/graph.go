@@ -276,8 +276,8 @@ func (g *Graph) rangeStmt(rangeStmt *ast.RangeStmt, exit *Node) *Node {
 	g.LoopEnd = exit
 	g.LoopPost = entry
 	var blockEntry = g.blockStmt(rangeStmt.Body, entry)
-	entry.Next = append(entry.Next, Link{blockEntry, ""})
-	entry.Next = append(entry.Next, Link{exit, ""})
+	entry.Next = append(entry.Next, Link{blockEntry, "not empty"})
+	entry.Next = append(entry.Next, Link{exit, "empty"})
 	return entry
 }
 
