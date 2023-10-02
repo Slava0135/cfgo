@@ -11,8 +11,11 @@ import (
 )
 
 func main() {
+	if len(os.Args) < 2 {
+		log.Fatalln("error: file name was not specified")
+	}
 	fset := token.NewFileSet()
-	filename := os.Args[2] // go run main.go -- "samples/block.go" 
+	filename := os.Args[1]
 	source, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatalln(err)
