@@ -112,6 +112,11 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 				return g.forStmt(s, innerExit)
 			})
 			continue
+		case *ast.RangeStmt:
+			processInnerStmt(func(innerExit *Node) *Node {
+				return g.rangeStmt(s, innerExit)
+			})
+			continue
 		case *ast.ReturnStmt:
 			if first == nil {
 				first = g.newNode()
@@ -215,4 +220,20 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 	return entry
 }
 
-// TODO: range, switch
+func (g *Graph) rangeStmt(rangeStmt *ast.RangeStmt, exit *Node) *Node {
+	var entry = g.newNode()
+	g.createIndex(entry)
+	entry.Text = string(g.Source[rangeStmt.Pos()-1:rangeStmt.Body.Lbrace-2])
+	var prevLoopEnd = g.LoopEnd
+	defer func() { g.LoopEnd = prevLoopEnd }()
+	var prevLoopPost = g.LoopPost
+	defer func() { g.LoopPost = prevLoopPost }()
+	g.LoopEnd = exit
+	g.LoopPost = entry
+	var blockEntry = g.blockStmt(rangeStmt.Body, entry)
+	entry.Next = append(entry.Next, blockEntry)
+	entry.Next = append(entry.Next, exit)
+	return entry
+}
+
+// TODO: switch
