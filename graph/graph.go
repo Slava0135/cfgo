@@ -209,19 +209,19 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt, exit *Node) *Node {
 	g.createIndex(entry)
 	entry.Kind = CONDITION
 	var blockEntry = g.blockStmt(ifStmt.Body, exit)
-	entry.Next = append(entry.Next, Link{blockEntry, ""})
+	entry.Next = append(entry.Next, Link{blockEntry, "true"})
 	entry.Text = string(g.Source[ifStmt.If-1:ifStmt.Cond.End()])
 	if ifStmt.Else != nil {
 		switch s := ifStmt.Else.(type) {
 		case *ast.BlockStmt:
 			var elseEntry = g.blockStmt(s, exit)
-			entry.Next = append(entry.Next, Link{elseEntry, ""}) 
+			entry.Next = append(entry.Next, Link{elseEntry, "false"}) 
 		case *ast.IfStmt:
 			var elseIfEntry = g.ifStmt(s, exit)
-			entry.Next = append(entry.Next, Link{elseIfEntry, ""})
+			entry.Next = append(entry.Next, Link{elseIfEntry, "false"})
 		}
 	} else {
-		entry.Next = append(entry.Next, Link{exit, ""})
+		entry.Next = append(entry.Next, Link{exit, "false"})
 	}
 	if len(entry.Next) != 2 {
 		panic("if block must have 2 branches")
@@ -254,8 +254,8 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 	g.LoopEnd = exit
 	g.LoopPost = post
 	var blockEntry = g.blockStmt(forStmt.Body, post)
-	condition.Next = append(condition.Next, Link{blockEntry, ""})
-	condition.Next = append(condition.Next, Link{exit, ""})
+	condition.Next = append(condition.Next, Link{blockEntry, "true"})
+	condition.Next = append(condition.Next, Link{exit, "false"})
 	if forStmt.Cond != nil {
 		condition.Text = string(g.Source[forStmt.Cond.Pos()-1:forStmt.Cond.End()])
 	} else {
