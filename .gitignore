@@ -26,3 +26,4 @@ go.work
 
 *.dot
 *.svg
+!example.svg
