@@ -8,9 +8,11 @@ func nestedContinue() {
 				continue
 			}
 		}
+		print("loop body")
 		if 42 != 42 {
 			continue
 		}
+		print("loop end")
 	}
 	println("unreachable")
 }
