@@ -236,7 +236,8 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 		entry = g.newNode()
 		g.createIndex(entry)
 		entry.Next = append(entry.Next, Link{condition, ""})
-		entry.Text = string(g.Source[forStmt.Init.Pos()-1:forStmt.Init.End()])
+		text := string(g.Source[forStmt.Init.Pos()-1:forStmt.Init.End()])
+		entry.Text = strings.TrimSuffix(text, ";")
 	}
 	g.createIndex(condition)
 	condition.Kind = CONDITION
@@ -257,7 +258,8 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 	condition.Next = append(condition.Next, Link{blockEntry, "true"})
 	condition.Next = append(condition.Next, Link{exit, "false"})
 	if forStmt.Cond != nil {
-		condition.Text = string(g.Source[forStmt.Cond.Pos()-1:forStmt.Cond.End()])
+		text := string(g.Source[forStmt.Cond.Pos()-1:forStmt.Cond.End()])
+		condition.Text = strings.TrimSuffix(text, ";")
 	} else {
 		condition.Text = "FOREVER"
 	}
