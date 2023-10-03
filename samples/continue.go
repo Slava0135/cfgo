@@ -2,10 +2,10 @@ package samples
 
 func nestedContinue() {
 	var ever = true
-	for ever {
+	for i := 0; ever; i += 1 {
 		for true {
 			if false {
-				continue
+				break
 			}
 		}
 		print("loop body")
