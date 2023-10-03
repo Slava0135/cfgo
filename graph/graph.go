@@ -210,7 +210,7 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt, exit *Node) *Node {
 	entry.Kind = CONDITION
 	var blockEntry = g.blockStmt(ifStmt.Body, exit)
 	entry.Next = append(entry.Next, Link{blockEntry, "true"})
-	entry.Text = string(g.Source[ifStmt.If-1:ifStmt.Cond.End()])
+	entry.Text = string(g.Source[ifStmt.Cond.Pos()-1:ifStmt.Cond.End()])
 	if ifStmt.Else != nil {
 		switch s := ifStmt.Else.(type) {
 		case *ast.BlockStmt:
