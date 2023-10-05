@@ -169,6 +169,9 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection) {
 		case *ast.ForStmt:
 			pushText(NORMAL)
 			listConns = append(listConns, g.forStmt(s))
+		case *ast.RangeStmt:
+			pushText(NORMAL)
+			listConns = append(listConns, g.rangeStmt(s))
 		case *ast.ReturnStmt:
 			text += string(g.Source[stmt.Pos()-1 : stmt.End()])
 			last := pushText(RETURN)
@@ -293,6 +296,38 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt) (conn Connection) {
 			fallthrough
 		case NORMAL:
 			e.Node.Next[post] = ""
+		case BREAK_OFF:
+			e.Type = BREAK_ON
+			fallthrough
+		default:
+			conn.Exits = append(conn.Exits, e)
+		}
+	}
+	return
+}
+
+func (g *Graph) rangeStmt(rangeStmt *ast.RangeStmt) (conn Connection) {
+	var rng = g.newNode()
+	rng.Kind = CONDITION
+	text := string(g.Source[rangeStmt.Pos()-1 : rangeStmt.X.End()])
+	rng.Text = strings.TrimSuffix(text, ";")
+	conn.Entry = rng
+	conn.Exits = append(conn.Exits, &Exit{rng, NORMAL})
+	bodyConn := g.listStmt(rangeStmt.Body.List)
+	if bodyConn.Entry != nil {
+		rng.Next[bodyConn.Entry] = "not empty"
+	} else {
+		rng.Next[rng] = "not empty"
+	}
+	for _, e := range bodyConn.Exits {
+		if e.Node == nil {
+			e.Node = rng
+		}
+		switch e.Type {
+		case CONTINUE:
+			fallthrough
+		case NORMAL:
+			e.Node.Next[rng] = ""
 		case BREAK_OFF:
 			e.Type = BREAK_ON
 			fallthrough
