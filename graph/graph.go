@@ -41,7 +41,7 @@ func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	var graph Graph
 	graph.Name = fd.Name.Name
 	graph.Source = source
-	conn, _ := graph.listStmt(fd.Body.List)
+	conn, _ := graph.listStmt(fd.Body.List, nil)
 	graph.Root = conn.Entry
 	var exit = graph.newNode()
 	exit.Text = "EXIT"
@@ -112,7 +112,7 @@ func (g *Graph) newNode() *Node {
 	return &node
 }
 
-func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection, empty bool) {
+func (g *Graph) listStmt(listStmt []ast.Stmt, prev *Node) (conn Connection, empty bool) {
 	if len(listStmt) == 0 {
 		empty = true
 		return
@@ -150,10 +150,21 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection, empty bool) {
 			listConns = append(listConns, g.forStmt(s))
 		case *ast.ReturnStmt:
 			text += string(g.Source[stmt.Pos()-1 : stmt.End()])
-			lastNode := pushText()
+			last := pushText()
 			connectAll()
-			lastNode.Kind = BRANCH
-			g.Returns = append(g.Returns, lastNode)
+			last.Kind = BRANCH
+			g.Returns = append(g.Returns, last)
+			return
+		case *ast.BranchStmt:
+			pushText()
+			connectAll()
+			if len(listConns) == 0 {
+				prev.Next[g.LoopPost] = ""
+			} else {
+				for _, e := range listConns[len(listConns)-1].Exits {
+					e.Next[g.LoopPost] = ""
+				}
+			}
 			return
 		default:
 			text += string(g.Source[stmt.Pos()-1 : stmt.End()])
@@ -170,7 +181,7 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt) (conn Connection) {
 	condition.Kind = CONDITION
 	condition.Text = string(g.Source[ifStmt.Cond.Pos()-1 : ifStmt.Cond.End()])
 	conn.Entry = condition
-	bodyConn, empty := g.listStmt(ifStmt.Body.List)
+	bodyConn, empty := g.listStmt(ifStmt.Body.List, condition)
 	if !empty {
 		condition.Next[bodyConn.Entry] = "true"
 		conn.Exits = append(conn.Exits, bodyConn.Exits...)
@@ -181,7 +192,7 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt) (conn Connection) {
 		var elseConn Connection
 		switch s := ifStmt.Else.(type) {
 		case *ast.BlockStmt:
-			elseConn, empty = g.listStmt(s.List)
+			elseConn, empty = g.listStmt(s.List, condition)
 		case *ast.IfStmt:
 			elseConn = g.ifStmt(s)
 		}
@@ -222,7 +233,10 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt) (conn Connection) {
 	if post == nil {
 		post = condition
 	}
-	bodyConn, empty := g.listStmt(forStmt.Body.List)
+	var prevLoopPost = g.LoopPost
+	g.LoopPost = condition
+	bodyConn, empty := g.listStmt(forStmt.Body.List, condition)
+	g.LoopPost = prevLoopPost
 	if !empty {
 		condition.Next[bodyConn.Entry] = "true"
 		for _, e := range bodyConn.Exits {
