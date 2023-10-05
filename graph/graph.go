@@ -270,7 +270,7 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 		text := string(g.Source[forStmt.Cond.Pos()-1:forStmt.Cond.End()])
 		condition.Text = strings.TrimSuffix(text, ";")
 	} else {
-		condition.Text = "FOREVER"
+		condition.Text = ""
 	}
 	return entry
 }
