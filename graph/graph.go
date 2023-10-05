@@ -39,7 +39,12 @@ func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	var exit = graph.newNode()
 	exit.Kind = BRANCH
 	graph.Exit = exit
-	graph.Root = graph.blockStmt(fd.Body, exit)
+	blockEntry, ok := graph.blockStmt(fd.Body, exit)
+	if ok {
+		graph.Root = blockEntry
+	} else {
+		graph.Root = exit
+	}
 	graph.createIndex(exit)
 	exit.Text = "RETURN"
 	return &graph
@@ -107,13 +112,9 @@ func (g *Graph) createIndex(node *Node) {
 	g.AllNodes = append(g.AllNodes, node)
 }
 
-func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
+func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) (entry *Node, ok bool) {
 	if len(blockStmt.List) == 0 {
-		var node = g.newNode()
-		g.createIndex(node)
-		node.Text = "EMPTY BLOCK"
-		node.Next[exit] = ""
-		return node
+		return nil, false
 	}
 	var first *Node
 	var last *Node
@@ -163,7 +164,7 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 			last.Text = text
 			last.Next[g.Exit] = ""
 			last.Kind = BRANCH
-			return first
+			return first, true
 		case *ast.BranchStmt:
 			var gotoNode *Node
 			switch s.Tok {
@@ -184,7 +185,7 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 			last.Text = text
 			last.Next[gotoNode] = ""
 			last.Kind = BRANCH
-			return first
+			return first, true
 		}
 		if first == nil {
 			first = g.newNode()
@@ -197,23 +198,31 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) *Node {
 		last.Text = text
 		last.Next[exit] = ""
 	}
-	return first
+	return first, true
 }
 
 func (g *Graph) ifStmt(ifStmt *ast.IfStmt, exit *Node) *Node {
 	var entry = g.newNode()
 	g.createIndex(entry)
 	entry.Kind = CONDITION
-	var blockEntry = g.blockStmt(ifStmt.Body, exit)
-	entry.Next[blockEntry] = "true"
+	blockEntry, ok := g.blockStmt(ifStmt.Body, exit)
+	if ok {
+		entry.Next[blockEntry] = "true"
+	} else {
+		entry.Next[exit] = "true"
+	}
 	entry.Text = string(g.Source[ifStmt.Cond.Pos()-1:ifStmt.Cond.End()])
 	if ifStmt.Else != nil {
 		switch s := ifStmt.Else.(type) {
 		case *ast.BlockStmt:
-			var elseEntry = g.blockStmt(s, exit)
-			entry.Next[elseEntry] = "false"
+			elseEntry, ok := g.blockStmt(s, exit)
+			if ok {
+				entry.Next[elseEntry] = "false"
+			} else {
+				entry.Next[exit] = "always"
+			}
 		case *ast.IfStmt:
-			var elseIfEntry = g.ifStmt(s, exit)
+			elseIfEntry := g.ifStmt(s, exit)
 			entry.Next[elseIfEntry] = "false"
 		}
 	} else {
@@ -250,8 +259,12 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
 	defer func() { g.LoopPost = prevLoopPost }()
 	g.LoopEnd = exit
 	g.LoopPost = post
-	var blockEntry = g.blockStmt(forStmt.Body, post)
-	condition.Next[blockEntry] = "true"
+	blockEntry, ok := g.blockStmt(forStmt.Body, post)
+	if ok {
+		condition.Next[blockEntry] = "true"
+	} else {
+		condition.Next[post] = "true"
+	}
 	condition.Next[exit] = "false"
 	if forStmt.Cond != nil {
 		text := string(g.Source[forStmt.Cond.Pos()-1:forStmt.Cond.End()])
@@ -273,8 +286,12 @@ func (g *Graph) rangeStmt(rangeStmt *ast.RangeStmt, exit *Node) *Node {
 	defer func() { g.LoopPost = prevLoopPost }()
 	g.LoopEnd = exit
 	g.LoopPost = entry
-	var blockEntry = g.blockStmt(rangeStmt.Body, entry)
-	entry.Next[blockEntry] = "not empty"
+	blockEntry, ok := g.blockStmt(rangeStmt.Body, entry)
+	if ok {
+		entry.Next[blockEntry] = "not empty"
+	} else {
+		entry.Next[entry] = "not empty"
+	}
 	entry.Next[exit] = "empty"
 	return entry
 }
