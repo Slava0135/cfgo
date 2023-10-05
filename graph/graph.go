@@ -3,7 +3,6 @@ package graph
 import (
 	"fmt"
 	"go/ast"
-	// "go/token"
 	"strings"
 )
 
@@ -41,7 +40,8 @@ func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	var graph Graph
 	graph.Name = fd.Name.Name
 	graph.Source = source
-	conn := graph.listStmt(fd.Body.List)
+	conn, _ := graph.listStmt(fd.Body.List)
+	graph.Root = conn.Entry
 	var exit = graph.newNode()
 	exit.Text = "EXIT"
 	exit.Kind = BRANCH
@@ -49,7 +49,6 @@ func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	for _, e := range conn.Exits {
 		e.Next[exit] = ""
 	} 
-	graph.Root = conn.Entry
 	return &graph
 }
 
@@ -109,8 +108,9 @@ func (g *Graph) newNode() *Node {
 	return &node
 }
 
-func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection) {
+func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection, empty bool) {
 	if len(listStmt) == 0 {
+		empty = true
 		return
 	}
 	text := ""
@@ -131,6 +131,9 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection) {
 		case *ast.IfStmt:
 			pushText()
 			listConns = append(listConns, g.ifStmt(s))
+		case *ast.ForStmt:
+			pushText()
+			listConns = append(listConns, g.forStmt(s))
 		default:
 			text += string(g.Source[stmt.Pos()-1:stmt.End()])
 		}
@@ -151,21 +154,66 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt) (conn Connection) {
 	condition.Kind = CONDITION
 	condition.Text = string(g.Source[ifStmt.Cond.Pos()-1:ifStmt.Cond.End()])
 	conn.Entry = condition
-	blockConn := g.listStmt(ifStmt.Body.List)
-	condition.Next[blockConn.Entry] = "true"
-	conn.Exits = append(conn.Exits, blockConn.Exits...)
+	bodyConn, empty := g.listStmt(ifStmt.Body.List)
+	if !empty {
+		condition.Next[bodyConn.Entry] = "true"
+		conn.Exits = append(conn.Exits, bodyConn.Exits...)
+	}
 	if ifStmt.Else == nil {
 		conn.Exits = append(conn.Exits, condition)
 	} else {
 		var elseConn Connection
 		switch s := ifStmt.Else.(type) {
 		case *ast.BlockStmt:
-			elseConn = g.listStmt(s.List)
+			elseConn, empty = g.listStmt(s.List)
 		case *ast.IfStmt:
 			elseConn = g.ifStmt(s)
 		}
 		condition.Next[elseConn.Entry] = "false"
 		conn.Exits = append(conn.Exits, elseConn.Exits...)
+	}
+	return
+}
+
+func (g *Graph) forStmt(forStmt *ast.ForStmt) (conn Connection) {
+	var init *Node
+	var condition = g.newNode()
+	condition.Kind = CONDITION
+	if forStmt.Cond != nil {
+		text := string(g.Source[forStmt.Cond.Pos()-1:forStmt.Cond.End()])
+		condition.Text = strings.TrimSuffix(text, ";")
+	} else {
+		condition.Text = ""
+	}
+	if forStmt.Init != nil {
+		init = g.newNode()
+		text := string(g.Source[forStmt.Init.Pos()-1:forStmt.Init.End()])
+		init.Text = strings.TrimSuffix(text, ";")
+		init.Next[condition] = ""
+	}
+	if init == nil {
+		init = condition
+	}
+	conn.Entry = init
+	conn.Exits = append(conn.Exits, condition)
+	var post *Node
+	if forStmt.Post != nil {
+		post = g.newNode()
+		text := string(g.Source[forStmt.Post.Pos()-1:forStmt.Post.End()])
+		post.Text = strings.TrimSuffix(text, ";")
+		post.Next[condition] = ""
+	}
+	if post == nil {
+		post = condition
+	}
+	bodyConn, empty := g.listStmt(forStmt.Body.List)
+	if !empty {
+		condition.Next[bodyConn.Entry] = "true"
+		for _, e := range bodyConn.Exits {
+			e.Next[post] = ""
+		}
+	} else {
+		condition.Next[post] = "true"
 	}
 	return
 }
