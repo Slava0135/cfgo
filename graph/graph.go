@@ -139,7 +139,7 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection) {
 	conn.Entry = listConns[0].Entry
 	for i := 0; i + 1 < len(listConns); i += 1 {
 		for _, e := range listConns[i].Exits {
-			e.Next[listConns[i].Entry] = ""
+			e.Next[listConns[i+1].Entry] = ""
 		}
 	}
 	conn.Exits = listConns[len(listConns)-1].Exits
@@ -147,5 +147,25 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection) {
 }
 
 func (g *Graph) ifStmt(ifStmt *ast.IfStmt) (conn Connection) {
+	condition := g.newNode()
+	condition.Kind = CONDITION
+	condition.Text = string(g.Source[ifStmt.Cond.Pos()-1:ifStmt.Cond.End()])
+	conn.Entry = condition
+	blockConn := g.listStmt(ifStmt.Body.List)
+	condition.Next[blockConn.Entry] = "true"
+	conn.Exits = append(conn.Exits, blockConn.Exits...)
+	if ifStmt.Else == nil {
+		conn.Exits = append(conn.Exits, condition)
+	} else {
+		var elseConn Connection
+		switch s := ifStmt.Else.(type) {
+		case *ast.BlockStmt:
+			elseConn = g.listStmt(s.List)
+		case *ast.IfStmt:
+			elseConn = g.ifStmt(s)
+		}
+		condition.Next[elseConn.Entry] = "false"
+		conn.Exits = append(conn.Exits, elseConn.Exits...)
+	}
 	return
 }
