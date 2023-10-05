@@ -3,7 +3,7 @@ package graph
 import (
 	"fmt"
 	"go/ast"
-	"go/token"
+	// "go/token"
 	"strings"
 )
 
@@ -26,6 +26,11 @@ type Node struct {
 
 type Kind int
 
+type Connection struct {
+	Entry *Node
+	Exits[] *Node
+}
+
 const (
 	SEQUENCE Kind = iota
 	CONDITION
@@ -36,17 +41,15 @@ func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	var graph Graph
 	graph.Name = fd.Name.Name
 	graph.Source = source
+	conn := graph.listStmt(fd.Body.List)
 	var exit = graph.newNode()
+	exit.Text = "EXIT"
 	exit.Kind = BRANCH
 	graph.Exit = exit
-	blockEntry, ok := graph.blockStmt(fd.Body, exit)
-	if ok {
-		graph.Root = blockEntry
-	} else {
-		graph.Root = exit
-	}
-	graph.createIndex(exit)
-	exit.Text = "EXIT"
+	for _, e := range conn.Exits {
+		e.Next[exit] = ""
+	} 
+	graph.Root = conn.Entry
 	return &graph
 }
 
@@ -101,192 +104,53 @@ func (g *Graph) newNode() *Node {
 	var node Node
 	node.Index = -1
 	node.Next = make(map[*Node]string)
+	node.Index = len(g.AllNodes)
+	g.AllNodes = append(g.AllNodes, &node)
 	return &node
 }
 
-func (g *Graph) createIndex(node *Node) {
-	if node.Index >= 0 {
+func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection) {
+	if len(listStmt) == 0 {
 		return
 	}
-	node.Index = len(g.AllNodes)
-	g.AllNodes = append(g.AllNodes, node)
-}
-
-func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) (entry *Node, ok bool) {
-	if len(blockStmt.List) == 0 {
-		return nil, false
-	}
-	var first *Node
-	var last *Node
-	var text = ""
-	for i, stmt := range blockStmt.List {
-		processInnerStmt := func(process func(innerExit *Node) *Node) {
-			var innerExit *Node
-			if i < len(blockStmt.List) - 1 {
-				innerExit = g.newNode()
-			} else {
-				innerExit = exit
-			}
-			var innerEntry = process(innerExit)
-			if first == nil {
-				first = innerEntry
-			} else {
-				last.Next[innerEntry] = ""
-				last.Text = text
-				text = ""
-			}
-			last = innerExit
-			g.createIndex(last)
-		}
+	text := ""
+	var listConns []Connection
+	for _, stmt := range listStmt {
 		switch s := stmt.(type) {
 		case *ast.IfStmt:
-			processInnerStmt(func(innerExit *Node) *Node {
-				return g.ifStmt(s, innerExit)
-			})
-			continue
-		case *ast.ForStmt:
-			processInnerStmt(func(innerExit *Node) *Node {
-				return g.forStmt(s, innerExit)
-			})
-			continue
-		case *ast.RangeStmt:
-			processInnerStmt(func(innerExit *Node) *Node {
-				return g.rangeStmt(s, innerExit)
-			})
-			continue
-		case *ast.ReturnStmt:
-			if first == nil {
-				first = g.newNode()
-				g.createIndex(first)
-				last = first
+			if text != "" {
+				node := g.newNode()
+				node.Text = text
+				text = ""
+				var conn Connection
+				conn.Entry = node
+				conn.Exits = append(conn.Exits, node)
+				listConns = append(listConns, conn)
 			}
-			text += string(g.Source[s.Pos()-1:s.End()])
-			last.Text = text
-			last.Next[g.Exit] = ""
-			last.Kind = BRANCH
-			return first, true
-		case *ast.BranchStmt:
-			var gotoNode *Node
-			switch s.Tok {
-			case token.BREAK:
-				gotoNode = g.LoopEnd
-			case token.CONTINUE:
-				gotoNode = g.LoopPost
-			}
-			if gotoNode == nil {
-				continue
-			}
-			if first == nil {
-				return nil, false
-			}
-			last.Text = text
-			last.Next[gotoNode] = ""
-			return first, true
+			listConns = append(listConns, g.ifStmt(s))
+		default:
+			text += string(g.Source[stmt.Pos()-1:stmt.End()])
 		}
-		if first == nil {
-			first = g.newNode()
-			g.createIndex(first)
-			last = first
+	}
+	if text != "" {
+		node := g.newNode()
+		node.Text = text
+		text = ""
+		var conn Connection
+		conn.Entry = node
+		conn.Exits = append(conn.Exits, node)
+		listConns = append(listConns, conn)
+	}
+	conn.Entry = listConns[0].Entry
+	for i := 0; i + 1 < len(listConns); i += 1 {
+		for _, e := range listConns[i].Exits {
+			e.Next[listConns[i].Entry] = ""
 		}
-		text += string(g.Source[stmt.Pos()-1:stmt.End()])
 	}
-	if last != exit {
-		last.Text = text
-		last.Next[exit] = ""
-	}
-	return first, true
+	conn.Exits = listConns[len(listConns)-1].Exits
+	return
 }
 
-func (g *Graph) ifStmt(ifStmt *ast.IfStmt, exit *Node) *Node {
-	var entry = g.newNode()
-	g.createIndex(entry)
-	entry.Kind = CONDITION
-	blockEntry, ok := g.blockStmt(ifStmt.Body, exit)
-	if ok {
-		entry.Next[blockEntry] = "true"
-	} else {
-		entry.Next[exit] = "true"
-	}
-	entry.Text = string(g.Source[ifStmt.Cond.Pos()-1:ifStmt.Cond.End()])
-	if ifStmt.Else != nil {
-		switch s := ifStmt.Else.(type) {
-		case *ast.BlockStmt:
-			elseEntry, ok := g.blockStmt(s, exit)
-			if ok {
-				entry.Next[elseEntry] = "false"
-			} else {
-				entry.Next[exit] = "always"
-			}
-		case *ast.IfStmt:
-			elseIfEntry := g.ifStmt(s, exit)
-			entry.Next[elseIfEntry] = "false"
-		}
-	} else {
-		entry.Next[exit] = "false"
-	}
-	return entry
+func (g *Graph) ifStmt(ifStmt *ast.IfStmt) (conn Connection) {
+	return
 }
-
-func (g *Graph) forStmt(forStmt *ast.ForStmt, exit *Node) *Node {
-	var entry = g.newNode()
-	var condition = entry 
-	if forStmt.Init != nil {
-		entry = g.newNode()
-		g.createIndex(entry)
-		entry.Next[condition] = ""
-		text := string(g.Source[forStmt.Init.Pos()-1:forStmt.Init.End()])
-		entry.Text = strings.TrimSuffix(text, ";")
-	}
-	g.createIndex(condition)
-	condition.Kind = CONDITION
-	var post = condition
-	if forStmt.Post != nil {
-		post = g.newNode()
-		g.createIndex(post)
-		post.Next[condition] = ""
-		post.Text = string(g.Source[forStmt.Post.Pos()-1:forStmt.Post.End()])
-	}
-	var prevLoopEnd = g.LoopEnd
-	defer func() { g.LoopEnd = prevLoopEnd }()
-	var prevLoopPost = g.LoopPost
-	defer func() { g.LoopPost = prevLoopPost }()
-	g.LoopEnd = exit
-	g.LoopPost = post
-	blockEntry, ok := g.blockStmt(forStmt.Body, post)
-	if ok {
-		condition.Next[blockEntry] = "true"
-	} else {
-		condition.Next[post] = "true"
-	}
-	condition.Next[exit] = "false"
-	if forStmt.Cond != nil {
-		text := string(g.Source[forStmt.Cond.Pos()-1:forStmt.Cond.End()])
-		condition.Text = strings.TrimSuffix(text, ";")
-	} else {
-		condition.Text = ""
-	}
-	return entry
-}
-
-func (g *Graph) rangeStmt(rangeStmt *ast.RangeStmt, exit *Node) *Node {
-	var entry = g.newNode()
-	g.createIndex(entry)
-	entry.Kind = CONDITION
-	entry.Text = string(g.Source[rangeStmt.Pos()-1:rangeStmt.Body.Lbrace-2])
-	var prevLoopEnd = g.LoopEnd
-	defer func() { g.LoopEnd = prevLoopEnd }()
-	var prevLoopPost = g.LoopPost
-	defer func() { g.LoopPost = prevLoopPost }()
-	g.LoopEnd = exit
-	g.LoopPost = entry
-	blockEntry, ok := g.blockStmt(rangeStmt.Body, entry)
-	if ok {
-		entry.Next[blockEntry] = "not empty"
-	} else {
-		entry.Next[entry] = "not empty"
-	}
-	entry.Next[exit] = "empty"
-	return entry
-}
-
-// TODO: switch
