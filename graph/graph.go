@@ -12,9 +12,6 @@ type Graph struct {
 	Root     *Node
 	Exit     *Node
 	AllNodes []*Node
-	LoopEnd  *Node
-	LoopPost *Node
-	Returns  []*Node
 }
 
 type Node struct {
@@ -28,8 +25,15 @@ type Kind int
 
 type Connection struct {
 	Entry *Node
-	Exits []*Node
+	Exits []*Exit
 }
+
+type Exit struct {
+	Node *Node
+	Type ExitType
+}
+
+type ExitType int
 
 const (
 	SEQUENCE Kind = iota
@@ -37,21 +41,24 @@ const (
 	BRANCH
 )
 
+const (
+	NORMAL = iota
+	RETURN
+	CONTINUE
+)
+
 func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 	var graph Graph
 	graph.Name = fd.Name.Name
 	graph.Source = source
-	conn, _ := graph.listStmt(fd.Body.List, nil)
+	conn, _ := graph.listStmt(fd.Body.List)
 	graph.Root = conn.Entry
 	var exit = graph.newNode()
 	exit.Text = "EXIT"
 	exit.Kind = BRANCH
 	graph.Exit = exit
 	for _, e := range conn.Exits {
-		e.Next[exit] = ""
-	}
-	for _, r := range graph.Returns {
-		r.Next[exit] = ""
+		e.Node.Next[exit] = ""
 	}
 	return &graph
 }
@@ -112,7 +119,7 @@ func (g *Graph) newNode() *Node {
 	return &node
 }
 
-func (g *Graph) listStmt(listStmt []ast.Stmt, prev *Node) (conn Connection, empty bool) {
+func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection, empty bool) {
 	if len(listStmt) == 0 {
 		empty = true
 		return
@@ -126,20 +133,29 @@ func (g *Graph) listStmt(listStmt []ast.Stmt, prev *Node) (conn Connection, empt
 			text = ""
 			var conn Connection
 			conn.Entry = node
-			conn.Exits = append(conn.Exits, node)
+			conn.Exits = append(conn.Exits, &Exit{node, NORMAL})
 			listConns = append(listConns, conn)
 			return node
 		}
 		return nil
 	}
-	connectAll := func() {
+	connectAll := func() bool {
+		if len(listConns) == 0 {
+			return false
+		}
 		conn.Entry = listConns[0].Entry
 		for i := 0; i+1 < len(listConns); i += 1 {
 			for _, e := range listConns[i].Exits {
-				e.Next[listConns[i+1].Entry] = ""
+				if e.Type == NORMAL {
+					e.Node.Next[listConns[i+1].Entry] = ""
+				} else {
+					conn.Exits = append(conn.Exits, e)
+				}
 			}
 		}
+		return true
 	}
+	loop:
 	for _, stmt := range listStmt {
 		switch s := stmt.(type) {
 		case *ast.IfStmt:
@@ -153,24 +169,30 @@ func (g *Graph) listStmt(listStmt []ast.Stmt, prev *Node) (conn Connection, empt
 			last := pushText()
 			connectAll()
 			last.Kind = BRANCH
-			g.Returns = append(g.Returns, last)
-			return
+			conn.Exits = append(conn.Exits, &Exit{last, RETURN})
+			break loop
 		case *ast.BranchStmt:
 			pushText()
 			connectAll()
 			if len(listConns) == 0 {
-				prev.Next[g.LoopPost] = ""
+				conn.Exits = append(conn.Exits, &Exit{nil, CONTINUE})
 			} else {
 				for _, e := range listConns[len(listConns)-1].Exits {
-					e.Next[g.LoopPost] = ""
+					if e.Type == NORMAL {
+						conn.Exits = append(conn.Exits, &Exit{e.Node, CONTINUE})
+					}
 				}
 			}
-			return
+			break loop
 		default:
 			text += string(g.Source[stmt.Pos()-1 : stmt.End()])
 		}
 	}
 	pushText()
+	if len(listConns) == 0 {
+		empty = true
+		return
+	}
 	connectAll()
 	conn.Exits = listConns[len(listConns)-1].Exits
 	return
@@ -181,23 +203,29 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt) (conn Connection) {
 	condition.Kind = CONDITION
 	condition.Text = string(g.Source[ifStmt.Cond.Pos()-1 : ifStmt.Cond.End()])
 	conn.Entry = condition
-	bodyConn, empty := g.listStmt(ifStmt.Body.List, condition)
+	bodyConn, empty := g.listStmt(ifStmt.Body.List)
 	if !empty {
 		condition.Next[bodyConn.Entry] = "true"
 		conn.Exits = append(conn.Exits, bodyConn.Exits...)
 	}
 	if ifStmt.Else == nil {
-		conn.Exits = append(conn.Exits, condition)
+		conn.Exits = append(conn.Exits, &Exit{condition, NORMAL})
 	} else {
 		var elseConn Connection
 		switch s := ifStmt.Else.(type) {
 		case *ast.BlockStmt:
-			elseConn, empty = g.listStmt(s.List, condition)
+			elseConn, empty = g.listStmt(s.List)
+			if !empty {
+				condition.Next[elseConn.Entry] = "false"
+				conn.Exits = append(conn.Exits, elseConn.Exits...)
+			} else {
+				conn.Exits = append(conn.Exits, &Exit{condition, NORMAL})
+			}
 		case *ast.IfStmt:
 			elseConn = g.ifStmt(s)
+			condition.Next[elseConn.Entry] = "false"
+			conn.Exits = append(conn.Exits, elseConn.Exits...)
 		}
-		condition.Next[elseConn.Entry] = "false"
-		conn.Exits = append(conn.Exits, elseConn.Exits...)
 	}
 	return
 }
@@ -222,7 +250,7 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt) (conn Connection) {
 		init = condition
 	}
 	conn.Entry = init
-	conn.Exits = append(conn.Exits, condition)
+	conn.Exits = append(conn.Exits, &Exit{condition, NORMAL})
 	var post *Node
 	if forStmt.Post != nil {
 		post = g.newNode()
@@ -233,14 +261,15 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt) (conn Connection) {
 	if post == nil {
 		post = condition
 	}
-	var prevLoopPost = g.LoopPost
-	g.LoopPost = condition
-	bodyConn, empty := g.listStmt(forStmt.Body.List, condition)
-	g.LoopPost = prevLoopPost
+	bodyConn, empty := g.listStmt(forStmt.Body.List)
 	if !empty {
 		condition.Next[bodyConn.Entry] = "true"
 		for _, e := range bodyConn.Exits {
-			e.Next[post] = ""
+			if e.Type == NORMAL || e.Type == CONTINUE {
+				e.Node.Next[post] = ""
+			} else {
+				conn.Exits = append(conn.Exits, e)
+			}
 		}
 	} else {
 		condition.Next[post] = "true"
