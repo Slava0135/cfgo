@@ -177,14 +177,10 @@ func (g *Graph) blockStmt(blockStmt *ast.BlockStmt, exit *Node) (entry *Node, ok
 				continue
 			}
 			if first == nil {
-				first = g.newNode()
-				g.createIndex(first)
-				last = first
+				return nil, false
 			}
-			text += string(g.Source[s.Pos()-1:s.End()])
 			last.Text = text
 			last.Next[gotoNode] = ""
-			last.Kind = BRANCH
 			return first, true
 		}
 		if first == nil {
@@ -227,9 +223,6 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt, exit *Node) *Node {
 		}
 	} else {
 		entry.Next[exit] = "false"
-	}
-	if len(entry.Next) != 2 {
-		panic("if block must have 2 branches")
 	}
 	return entry
 }
