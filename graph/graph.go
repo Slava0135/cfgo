@@ -3,6 +3,7 @@ package graph
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"strings"
 )
 
@@ -42,9 +43,11 @@ const (
 )
 
 const (
-	NORMAL = iota
+	NORMAL ExitType = iota
 	RETURN
 	CONTINUE
+	BREAK_OFF
+	BREAK_ON
 )
 
 func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
@@ -145,9 +148,12 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection) {
 		conn.Entry = listConns[0].Entry
 		for i := 0; i+1 < len(listConns); i += 1 {
 			for _, e := range listConns[i].Exits {
-				if e.Type == NORMAL {
+				switch e.Type {
+				case BREAK_ON:
+					fallthrough
+				case NORMAL:
 					e.Node.Next[listConns[i+1].Entry] = ""
-				} else {
+				default:
 					conn.Exits = append(conn.Exits, e)
 				}
 			}
@@ -169,13 +175,22 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection) {
 			last.Kind = BRANCH
 			break loop
 		case *ast.BranchStmt:
-			pushText(CONTINUE)
+			var exitType ExitType
+			switch s.Tok {
+			case token.CONTINUE:
+				exitType = CONTINUE
+			case token.BREAK:
+				exitType = BREAK_OFF
+			default:
+				text += string(g.Source[stmt.Pos()-1 : stmt.End()])
+			} 
+			pushText(exitType)
 			if len(listConns) == 0 {
-				conn.Exits = append(conn.Exits, &Exit{nil, CONTINUE})
+				conn.Exits = append(conn.Exits, &Exit{nil, exitType})
 			} else {
 				for _, e := range listConns[len(listConns)-1].Exits {
 					if e.Type == NORMAL {
-						conn.Exits = append(conn.Exits, &Exit{e.Node, CONTINUE})
+						conn.Exits = append(conn.Exits, &Exit{e.Node, exitType})
 					}
 				}
 			}
@@ -273,9 +288,15 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt) (conn Connection) {
 		if e.Node == nil {
 			e.Node = condition
 		}
-		if e.Type == NORMAL || e.Type == CONTINUE {
+		switch e.Type {
+		case CONTINUE:
+			fallthrough
+		case NORMAL:
 			e.Node.Next[post] = ""
-		} else {
+		case BREAK_OFF:
+			e.Type = BREAK_ON
+			fallthrough
+		default:
 			conn.Exits = append(conn.Exits, e)
 		}
 	}
