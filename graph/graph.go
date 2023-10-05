@@ -170,8 +170,7 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection, empty bool) {
 			last.Kind = BRANCH
 			break loop
 		case *ast.BranchStmt:
-			pushText(NORMAL)
-			connectAll()
+			pushText(CONTINUE)
 			if len(listConns) == 0 {
 				conn.Exits = append(conn.Exits, &Exit{nil, CONTINUE})
 			} else {
