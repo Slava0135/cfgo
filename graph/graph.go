@@ -46,7 +46,7 @@ func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
 		graph.Root = exit
 	}
 	graph.createIndex(exit)
-	exit.Text = "RETURN"
+	exit.Text = "EXIT"
 	return &graph
 }
 
