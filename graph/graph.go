@@ -126,22 +126,22 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection, empty bool) {
 	}
 	text := ""
 	var listConns []Connection
-	pushText := func() *Node {
+	pushText := func(exitType ExitType) *Node {
 		if text != "" {
 			node := g.newNode()
 			node.Text = text
 			text = ""
 			var conn Connection
 			conn.Entry = node
-			conn.Exits = append(conn.Exits, &Exit{node, NORMAL})
+			conn.Exits = append(conn.Exits, &Exit{node, exitType})
 			listConns = append(listConns, conn)
 			return node
 		}
 		return nil
 	}
-	connectAll := func() bool {
+	connectAll := func() {
 		if len(listConns) == 0 {
-			return false
+			return
 		}
 		conn.Entry = listConns[0].Entry
 		for i := 0; i+1 < len(listConns); i += 1 {
@@ -153,26 +153,25 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection, empty bool) {
 				}
 			}
 		}
-		return true
+		return
 	}
 	loop:
 	for _, stmt := range listStmt {
 		switch s := stmt.(type) {
 		case *ast.IfStmt:
-			pushText()
+			pushText(NORMAL)
 			listConns = append(listConns, g.ifStmt(s))
 		case *ast.ForStmt:
-			pushText()
+			pushText(NORMAL)
 			listConns = append(listConns, g.forStmt(s))
 		case *ast.ReturnStmt:
 			text += string(g.Source[stmt.Pos()-1 : stmt.End()])
-			last := pushText()
+			last := pushText(RETURN)
 			connectAll()
 			last.Kind = BRANCH
-			conn.Exits = append(conn.Exits, &Exit{last, RETURN})
-			break loop
+			return
 		case *ast.BranchStmt:
-			pushText()
+			pushText(NORMAL)
 			connectAll()
 			if len(listConns) == 0 {
 				conn.Exits = append(conn.Exits, &Exit{nil, CONTINUE})
@@ -188,7 +187,7 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection, empty bool) {
 			text += string(g.Source[stmt.Pos()-1 : stmt.End()])
 		}
 	}
-	pushText()
+	pushText(NORMAL)
 	if len(listConns) == 0 {
 		empty = true
 		return
