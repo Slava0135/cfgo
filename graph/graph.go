@@ -49,6 +49,7 @@ const (
 	BREAK_OFF
 	BREAK_ON
 	EMPTY_BRANCH
+	FALSE_BRANCH
 )
 
 func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
@@ -150,6 +151,8 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection) {
 		for i := 0; i+1 < len(listConns); i += 1 {
 			for _, e := range listConns[i].Exits {
 				switch e.Type {
+				case FALSE_BRANCH:
+					e.Node.Next[listConns[i+1].Entry] = "false"
 				case EMPTY_BRANCH:
 					e.Node.Next[listConns[i+1].Entry] = "empty"
 				case BREAK_ON:
@@ -225,7 +228,7 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt) (conn Connection) {
 	}
 	conn.Exits = append(conn.Exits, bodyConn.Exits...)
 	if ifStmt.Else == nil {
-		conn.Exits = append(conn.Exits, &Exit{condition, NORMAL})
+		conn.Exits = append(conn.Exits, &Exit{condition, FALSE_BRANCH})
 	} else {
 		var elseConn Connection
 		switch s := ifStmt.Else.(type) {
@@ -273,7 +276,7 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt) (conn Connection) {
 		init = condition
 	}
 	conn.Entry = init
-	conn.Exits = append(conn.Exits, &Exit{condition, NORMAL})
+	conn.Exits = append(conn.Exits, &Exit{condition, FALSE_BRANCH})
 	var post *Node
 	if forStmt.Post != nil {
 		post = g.newNode()
