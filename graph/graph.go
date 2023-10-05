@@ -167,9 +167,8 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection, empty bool) {
 		case *ast.ReturnStmt:
 			text += string(g.Source[stmt.Pos()-1 : stmt.End()])
 			last := pushText(RETURN)
-			connectAll()
 			last.Kind = BRANCH
-			return
+			break loop
 		case *ast.BranchStmt:
 			pushText(NORMAL)
 			connectAll()
@@ -193,7 +192,7 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection, empty bool) {
 		return
 	}
 	connectAll()
-	conn.Exits = listConns[len(listConns)-1].Exits
+	conn.Exits = append(conn.Exits, listConns[len(listConns)-1].Exits...)
 	return
 }
 
