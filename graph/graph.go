@@ -115,32 +115,27 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection) {
 	}
 	text := ""
 	var listConns []Connection
+	pushText := func() {
+		if text != "" {
+			node := g.newNode()
+			node.Text = text
+			text = ""
+			var conn Connection
+			conn.Entry = node
+			conn.Exits = append(conn.Exits, node)
+			listConns = append(listConns, conn)
+		}
+	}
 	for _, stmt := range listStmt {
 		switch s := stmt.(type) {
 		case *ast.IfStmt:
-			if text != "" {
-				node := g.newNode()
-				node.Text = text
-				text = ""
-				var conn Connection
-				conn.Entry = node
-				conn.Exits = append(conn.Exits, node)
-				listConns = append(listConns, conn)
-			}
+			pushText()
 			listConns = append(listConns, g.ifStmt(s))
 		default:
 			text += string(g.Source[stmt.Pos()-1:stmt.End()])
 		}
 	}
-	if text != "" {
-		node := g.newNode()
-		node.Text = text
-		text = ""
-		var conn Connection
-		conn.Entry = node
-		conn.Exits = append(conn.Exits, node)
-		listConns = append(listConns, conn)
-	}
+	pushText()
 	conn.Entry = listConns[0].Entry
 	for i := 0; i + 1 < len(listConns); i += 1 {
 		for _, e := range listConns[i].Exits {
