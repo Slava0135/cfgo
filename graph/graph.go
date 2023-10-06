@@ -223,6 +223,10 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt) (conn Connection) {
 	bodyConn := g.listStmt(ifStmt.Body.List)
 	if bodyConn.Entry != nil {
 		condition.Next[bodyConn.Entry] = "true"
+	} else {
+		for _, e := range bodyConn.Exits {
+			e.NameOverride = []byte("true")
+		}
 	}
 	conn.Exits = append(conn.Exits, bodyConn.Exits...)
 	if ifStmt.Else == nil {
