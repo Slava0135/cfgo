@@ -32,6 +32,7 @@ type Connection struct {
 type Exit struct {
 	Node *Node
 	Type ExitType
+	NameOverride []byte
 }
 
 type ExitType int
@@ -135,7 +136,7 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection) {
 			text = ""
 			var conn Connection
 			conn.Entry = node
-			conn.Exits = append(conn.Exits, &Exit{node, exitType})
+			conn.Exits = append(conn.Exits, &Exit{node, exitType, nil})
 			listConns = append(listConns, conn)
 			return node
 		}
@@ -153,6 +154,9 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection) {
 					fallthrough
 				case NORMAL:
 					e.Node.Next[listConns[i+1].Entry] = ""
+					if e.NameOverride != nil {
+						e.Node.Next[listConns[i+1].Entry] = string(e.NameOverride)
+					}
 				default:
 					conn.Exits = append(conn.Exits, e)
 				}
@@ -189,11 +193,11 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection) {
 			} 
 			pushText(exitType)
 			if len(listConns) == 0 {
-				conn.Exits = append(conn.Exits, &Exit{nil, exitType})
+				conn.Exits = append(conn.Exits, &Exit{nil, exitType, nil})
 			} else {
 				for _, e := range listConns[len(listConns)-1].Exits {
 					if e.Type == NORMAL {
-						conn.Exits = append(conn.Exits, &Exit{e.Node, exitType})
+						conn.Exits = append(conn.Exits, &Exit{e.Node, exitType, nil})
 					}
 				}
 			}
@@ -222,7 +226,7 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt) (conn Connection) {
 	}
 	conn.Exits = append(conn.Exits, bodyConn.Exits...)
 	if ifStmt.Else == nil {
-		conn.Exits = append(conn.Exits, &Exit{condition, NORMAL})
+		conn.Exits = append(conn.Exits, &Exit{condition, NORMAL, []byte("false")})
 	} else {
 		var elseConn Connection
 		switch s := ifStmt.Else.(type) {
@@ -234,7 +238,7 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt) (conn Connection) {
 			if len(elseConn.Exits) > 0 {
 				conn.Exits = append(conn.Exits, elseConn.Exits...)
 			} else {
-				conn.Exits = append(conn.Exits, &Exit{condition, NORMAL})
+				conn.Exits = append(conn.Exits, &Exit{condition, NORMAL, []byte("false")})
 			}
 		case *ast.IfStmt:
 			elseConn = g.ifStmt(s)
@@ -270,7 +274,7 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt) (conn Connection) {
 		init = condition
 	}
 	conn.Entry = init
-	conn.Exits = append(conn.Exits, &Exit{condition, NORMAL})
+	conn.Exits = append(conn.Exits, &Exit{condition, NORMAL, []byte("false")})
 	var post *Node
 	if forStmt.Post != nil {
 		post = g.newNode()
@@ -296,6 +300,9 @@ func (g *Graph) forStmt(forStmt *ast.ForStmt) (conn Connection) {
 			fallthrough
 		case NORMAL:
 			e.Node.Next[post] = ""
+			if e.NameOverride != nil {
+				e.Node.Next[post] = string(e.NameOverride)
+			}
 		case BREAK_OFF:
 			e.Type = BREAK_ON
 			fallthrough
@@ -312,7 +319,7 @@ func (g *Graph) rangeStmt(rangeStmt *ast.RangeStmt) (conn Connection) {
 	text := string(g.Source[rangeStmt.Pos()-1 : rangeStmt.X.End()])
 	rng.Text = strings.TrimSuffix(text, ";")
 	conn.Entry = rng
-	conn.Exits = append(conn.Exits, &Exit{rng, NORMAL})
+	conn.Exits = append(conn.Exits, &Exit{rng, NORMAL, []byte("empty")})
 	bodyConn := g.listStmt(rangeStmt.Body.List)
 	if bodyConn.Entry != nil {
 		rng.Next[bodyConn.Entry] = "not empty"
@@ -328,6 +335,9 @@ func (g *Graph) rangeStmt(rangeStmt *ast.RangeStmt) (conn Connection) {
 			fallthrough
 		case NORMAL:
 			e.Node.Next[rng] = ""
+			if e.NameOverride != nil {
+				e.Node.Next[rng] = string(e.NameOverride)
+			}
 		case BREAK_OFF:
 			e.Type = BREAK_ON
 			fallthrough
