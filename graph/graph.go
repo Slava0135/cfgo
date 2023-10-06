@@ -238,11 +238,16 @@ func (g *Graph) ifStmt(ifStmt *ast.IfStmt) (conn Connection) {
 			elseConn = g.listStmt(s.List)
 			if elseConn.Entry != nil {
 				condition.Next[elseConn.Entry] = "false"
-			} 
-			if len(elseConn.Exits) > 0 {
 				conn.Exits = append(conn.Exits, elseConn.Exits...)
 			} else {
-				conn.Exits = append(conn.Exits, &Exit{condition, NORMAL, []byte("false")})
+				if len(elseConn.Exits) > 0 {
+					for _, e := range elseConn.Exits {
+						e.NameOverride = []byte("false")
+					}
+					conn.Exits = append(conn.Exits, elseConn.Exits...)
+				} else {
+					conn.Exits = append(conn.Exits, &Exit{condition, NORMAL, []byte("false")})
+				}
 			}
 		case *ast.IfStmt:
 			elseConn = g.ifStmt(s)

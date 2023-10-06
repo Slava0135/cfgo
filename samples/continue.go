@@ -13,6 +13,8 @@ func nestedContinue() {
 		print("loop body")
 		if 42 != 42 {
 			continue
+		} else {
+			break
 		}
 		print("loop end")
 	}
