@@ -48,7 +48,6 @@ const (
 	CONTINUE
 	BREAK_OFF
 	BREAK_ON
-	EMPTY_BRANCH
 )
 
 func BuildFuncGraph(source []byte, fd *ast.FuncDecl) *Graph {
@@ -150,8 +149,6 @@ func (g *Graph) listStmt(listStmt []ast.Stmt) (conn Connection) {
 		for i := 0; i+1 < len(listConns); i += 1 {
 			for _, e := range listConns[i].Exits {
 				switch e.Type {
-				case EMPTY_BRANCH:
-					e.Node.Next[listConns[i+1].Entry] = "empty"
 				case BREAK_ON:
 					fallthrough
 				case NORMAL:
@@ -315,7 +312,7 @@ func (g *Graph) rangeStmt(rangeStmt *ast.RangeStmt) (conn Connection) {
 	text := string(g.Source[rangeStmt.Pos()-1 : rangeStmt.X.End()])
 	rng.Text = strings.TrimSuffix(text, ";")
 	conn.Entry = rng
-	conn.Exits = append(conn.Exits, &Exit{rng, EMPTY_BRANCH})
+	conn.Exits = append(conn.Exits, &Exit{rng, NORMAL})
 	bodyConn := g.listStmt(rangeStmt.Body.List)
 	if bodyConn.Entry != nil {
 		rng.Next[bodyConn.Entry] = "not empty"
