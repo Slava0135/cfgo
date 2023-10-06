@@ -2,10 +2,10 @@
 
 Very limited CFG generator for Golang
 
-* block
 * if
 * for
 * range
+* return/break/continue
 
 ## Use
 
